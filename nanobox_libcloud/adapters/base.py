@@ -102,12 +102,12 @@ class Adapter(object, metaclass=AdapterBase):
     @classmethod
     def _get_user_driver(cls, **auth_credentials) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
-        return cls.get_driver_class()(**auth_credentials)
+        return cls._get_driver_class()(**auth_credentials)
 
     @classmethod
     def _get_generic_driver(cls) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
-        return cls.get_driver_class()()
+        return cls._get_driver_class()()
 
     @classmethod
     def get_id(cls) -> str:
