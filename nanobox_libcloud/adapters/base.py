@@ -1,9 +1,11 @@
 import typing
 
 import libcloud
+from libcloud.compute.base import NodeDriver
 from libcloud.compute.types import Provider
 
 from nanobox_libcloud.utils import models
+from nanobox_libcloud.utils.models import ServerRegion
 
 
 class AdapterBase(type):
@@ -59,9 +61,6 @@ class Adapter(object, metaclass=AdapterBase):
     auth_credential_fields = []  # type: typing.Tuple[str, str]
     auth_instructions = ""  # type: str
 
-    def __init__(self, **auth_credentials):
-        self._driver = self.get_driver_class()(**auth_credentials)
-
     def get_meta(self) -> models.AdapterMeta:
         """Returns the metadata of this adapter."""
         return models.AdapterMeta(
@@ -85,12 +84,30 @@ class Adapter(object, metaclass=AdapterBase):
 
     def get_catalog(self) -> typing.List[models.ServerRegion]:
         """Returns the catalog for this adapter."""
-        pass  # TODO
+        # Use generic driver because there are no auth tokens
+        provider = self._get_generic_driver()
+
+        # Build catalog
+        catalog = []
+
+        # TODO: Actually build the catalog
+
+        return catalog
 
     @classmethod
-    def get_driver_class(cls) -> typing.Type[Provider]:
+    def _get_driver_class(cls) -> typing.Type[NodeDriver]:
         """Returns the libcloud driver class for the id of this adapter."""
         return libcloud.get_driver(libcloud.DriverType.COMPUTE, cls.get_id())
+
+    @classmethod
+    def _get_user_driver(cls, **auth_credentials) -> NodeDriver:
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+        return cls.get_driver_class()(**auth_credentials)
+
+    @classmethod
+    def _get_generic_driver(cls) -> NodeDriver:
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+        return cls.get_driver_class()()
 
     @classmethod
     def get_id(cls) -> str:
