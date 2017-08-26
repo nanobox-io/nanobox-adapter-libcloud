@@ -2,3 +2,10 @@ run.config:
   engine: python
   engine.config:
     runtime: python-3.6
+  extra_packages:
+    - inotify-tools
+  fs_watch: true
+
+web.main:
+  start:
+    flask: gunicorn -c /app/etc/gunicorn.py nanobox_libcloud:app

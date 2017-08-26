@@ -4,11 +4,14 @@ certifi==2017.7.27.1
 chardet==3.0.4
 click==6.7
 Flask==0.12.2
+Flask-Cors==3.0.3
+gunicorn==19.7.1
 idna==2.5
 itsdangerous==0.24
 Jinja2==2.9.6
 MarkupSafe==1.0
 packaging==16.8
+pycrypto==2.6.1
 pyparsing==2.1.10
 requests==2.18.2
 six==1.10.0

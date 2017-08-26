@@ -35,8 +35,8 @@ class AdapterMeta(Model):
     ssh_auth_method = None  # type: str
     ssh_key_method = None  # type: str
     bootstrap_script = None  # type: str
-    credential_fields = None  # type: typing.Tuple[str, str]
-    instructions = None  # type: str
+    auth_credential_fields = None  # type: typing.Tuple[str, str]
+    auth_instructions = None  # type: str
 
     def to_nanobox(self) -> dict:
         return {
@@ -54,8 +54,8 @@ class AdapterMeta(Model):
             'ssh_auth_method': self.ssh_auth_method,
             'ssh_key_method': self.ssh_key_method,
             'bootstrap_script': self.bootstrap_script,
-            'credential_fields': [{'key': field[0], 'label': field[1]} for field in self.credential_fields],
-            'instructions': self.instructions,
+            'auth_credential_fields': [{'key': field[0], 'label': field[1]} for field in self.auth_credential_fields],
+            'auth_instructions': self.auth_instructions,
         }
 
 

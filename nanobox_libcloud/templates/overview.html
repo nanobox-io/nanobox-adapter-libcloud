@@ -1,0 +1,11 @@
+<p>This is the libcloud meta-adapter for Nanobox.</p>
+
+<p>The adapters currently supported by this meta-adapter are:</p>
+
+<ul>
+  {% for adapter in adapters %}
+    <li><a href="/{{ adapter }}">{{ url_for("usage", adapter_id=adapter, _external=True) }}</a></li>
+  {% endfor %}
+</ul>
+
+<p>From your Nanobox Dashboard, if you don't see the associated adapter there already (you should, if it's here, unless it's still in development), create a new Hosting Account with a Custom Provider, and provide the adapter URL above as the Provider Endpoint. Then, simply follow the instructions to set up your hosting account.</p>

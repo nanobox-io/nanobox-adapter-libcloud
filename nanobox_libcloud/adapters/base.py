@@ -5,7 +5,6 @@ from libcloud.compute.base import NodeDriver
 from libcloud.compute.types import Provider
 
 from nanobox_libcloud.utils import models
-from nanobox_libcloud.utils.models import ServerRegion
 
 
 class AdapterBase(type):
@@ -22,6 +21,7 @@ class AdapterBase(type):
 
     @classmethod
     def register(mcs, cls):
+        cls.__init__(cls)
         adapter_id = cls.get_id()
 
         # Check if there is an existing adapter with the same id
@@ -61,6 +61,8 @@ class Adapter(object, metaclass=AdapterBase):
     auth_credential_fields = []  # type: typing.Tuple[str, str]
     auth_instructions = ""  # type: str
 
+    generic_credentials = {} # type: object
+
     def get_meta(self) -> models.AdapterMeta:
         """Returns the metadata of this adapter."""
         return models.AdapterMeta(
@@ -80,12 +82,16 @@ class Adapter(object, metaclass=AdapterBase):
             bootstrap_script=self.server_bootstrap_script,
             auth_credential_fields=self.auth_credential_fields,
             auth_instructions=self.auth_instructions,
-        )
+        ).to_nanobox()
 
     def get_catalog(self) -> typing.List[models.ServerRegion]:
         """Returns the catalog for this adapter."""
         # Use generic driver because there are no auth tokens
-        provider = self._get_generic_driver()
+        try:
+            provider = self._get_generic_driver()
+        except libcloud.common.types.ProviderError:
+            pass
+            # Get cached data...
 
         # Build catalog
         catalog = []
@@ -93,6 +99,14 @@ class Adapter(object, metaclass=AdapterBase):
         # TODO: Actually build the catalog
 
         return catalog
+
+    def post_verify(self, headers) -> bool:
+        """Verify the account credentials."""
+        try:
+            provider = self._get_user_driver(**self._get_request_credentials(headers))
+            return True
+        except libcloud.common.types.ProviderError:
+            return False
 
     @classmethod
     def _get_driver_class(cls) -> typing.Type[NodeDriver]:
@@ -106,8 +120,8 @@ class Adapter(object, metaclass=AdapterBase):
 
     @classmethod
     def _get_generic_driver(cls) -> NodeDriver:
-        """Returns a driver instance for a user with the appropriate authentication credentials set."""
-        return cls._get_driver_class()()
+        """Returns a driver instance for an anonymous user."""
+        return cls._get_user_driver(**cls.generic_credentials)
 
     @classmethod
     def get_id(cls) -> str:

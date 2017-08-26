@@ -1,0 +1,5 @@
+<p>This is the libcloud-powered Nanobox adapter for {{ adapter.name }}.</p>
+
+<p>It complies with the standard Nanobox adapter API conventions. Simply set your custom provider endpoint to <span style="font-weight: bold;">{{ url_for("usage", adapter_id=adapter.id, _external=True) }}</span> (this page) and let it handle the rest.</p>
+
+<p>If you'd like to verify the adapter against an OpenAPI spec, point SwaggerUI at <a href="{{ url_for('static', filename='gce.json') }}">{{ url_for('static', filename='gce.json', _external=True) }}</a>...</p>
