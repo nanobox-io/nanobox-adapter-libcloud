@@ -13,16 +13,16 @@ class Gce(Adapter):
 
     # Provider auth properties
     auth_credential_fields = [
-        ["Client-Id", "Client ID"],
-        ["Client-Secret", "Client Secret"],
+        ["Service-Email", "Service Email"],
+        ["Service-Key", "Service Key"],
         ["Project-Id", "Project ID"]
     ]
     auth_instructions = ""
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
-            'user_id': os.getenv('GENERIC_GCE_CLIENT_ID'),
-            'key': os.getenv('GENERIC_GCE_CLIENT_SECRET'),
+            'user_id': os.getenv('GENERIC_GCE_SERVICE_EMAIL'),
+            'key': os.getenv('GENERIC_GCE_SERVICE_KEY'),
             'project': os.getenv('GENERIC_GCE_PROJECT_ID')
         }
 
@@ -45,8 +45,8 @@ class Gce(Adapter):
     def _get_request_credentials(cls, headers):
         """Extracts credentials from request headers."""
         return {
-            "user_id": headers.get("Client-Id"),
-            "key": headers.get("Client-Secret"),
+            "user_id": headers.get("Service-Email"),
+            "key": headers.get("Service-Key"),
             "project": headers.get("Project-Id")
         }
 

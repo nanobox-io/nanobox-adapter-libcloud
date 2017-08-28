@@ -86,17 +86,37 @@ class Adapter(object, metaclass=AdapterBase):
 
     def get_catalog(self) -> typing.List[models.ServerRegion]:
         """Returns the catalog for this adapter."""
-        # Use generic driver because there are no auth tokens
-        try:
-            provider = self._get_generic_driver()
-        except libcloud.common.types.ProviderError:
-            pass
-            # Get cached data...
-
         # Build catalog
         catalog = []
 
         # TODO: Actually build the catalog
+        try:
+            # Use generic driver because there are no auth tokens
+            provider = self._get_generic_driver()
+            for location in provider.list_locations():
+                catalog.append(models.ServerRegion(
+                    id=location.id,
+                    name=location.name,
+                    plans=[
+                        # TODO: Generate plans list, and add provider.list_sizes(location) to each.
+                        models.ServerPlan(
+                            id=self.id,
+                            name=self.name,
+                            specs=[models.ServerSpec(
+                                id=size.id,
+                                ram=size.ram,
+                                cpu=size.extra['guestCpus'],
+                                disk=size.disk,
+                                transfer=size.bandwidth,
+                                dollars_per_hr=size.price,
+                                dollars_per_mo=(((size.price or 0) * 30 * 24) or None)
+                            ) for size in provider.list_sizes(location)]
+                        )
+                    ]
+                ).to_nanobox())
+        except libcloud.common.types.ProviderError:
+            # Get cached data...
+            pass
 
         return catalog
 

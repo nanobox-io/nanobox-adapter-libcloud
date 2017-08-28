@@ -38,10 +38,10 @@
         },
         "operationId": "create-ssh-key",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -110,10 +110,10 @@
         },
         "operationId": "query-ssh-key",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -176,10 +176,10 @@
         },
         "operationId": "delete-ssh-key",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -507,10 +507,10 @@
         },
         "operationId": "verify",
         "parameters": [{
-          "$ref": "#/parameters/Client-Id"
+          "$ref": "#/parameters/Service-Email"
         },
         {
-          "$ref": "#/parameters/Client-Secret"
+          "$ref": "#/parameters/Service-Key"
         },
         {
           "$ref": "#/parameters/Project-Id"
@@ -538,10 +538,10 @@
         },
         "operationId": "order-server",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -619,10 +619,10 @@
         },
         "operationId": "query-server",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -702,10 +702,10 @@
         },
         "operationId": "cancel-server",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -741,10 +741,10 @@
         },
         "operationId": "reboot-server",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -780,10 +780,10 @@
         },
         "operationId": "rename-server",
         "parameters": [{
-            "$ref": "#/parameters/Client-Id"
+            "$ref": "#/parameters/Service-Email"
           },
           {
-            "$ref": "#/parameters/Client-Secret"
+            "$ref": "#/parameters/Service-Key"
           },
           {
             "$ref": "#/parameters/Project-Id"
@@ -827,14 +827,14 @@
   },
   "definitions": {},
   "parameters": {
-    "Client-Id": {
-      "name": "Client-Id",
+    "Service-Email": {
+      "name": "Service-Email",
       "in": "header",
       "required": true,
       "type": "string"
     },
-    "Client-Secret": {
-      "name": "Client-Secret",
+    "Service-Key": {
+      "name": "Service-Key",
       "in": "header",
       "required": true,
       "type": "string"
