@@ -1,4 +1,5 @@
 import typing
+from decimal import Decimal
 
 import libcloud
 from libcloud.compute.base import NodeDriver
@@ -104,12 +105,12 @@ class Adapter(object, metaclass=AdapterBase):
                             name=self.name,
                             specs=[models.ServerSpec(
                                 id=size.id,
-                                ram=size.ram,
-                                cpu=size.extra['guestCpus'],
-                                disk=size.disk,
-                                transfer=size.bandwidth,
-                                dollars_per_hr=size.price,
-                                dollars_per_mo=(((size.price or 0) * 30 * 24) or None)
+                                ram=self.get_ram(size),
+                                cpu=self.get_cpu(size),
+                                disk=self.get_disk(size),
+                                transfer=self.get_transfer(size),
+                                dollars_per_hr=self.get_hourly_price(size),
+                                dollars_per_mo=self.get_monthly_price(size)
                             ) for size in provider.list_sizes(location)]
                         )
                     ]
@@ -174,6 +175,38 @@ class Adapter(object, metaclass=AdapterBase):
     def can_rename(cls) -> bool:
         """Returns whether this adapter allows servers to be renamed."""
         return hasattr(cls, 'rename_server') and callable(cls.rename_server)
+
+    @classmethod
+    def get_ram(cls, size) -> int:
+        """Translates a RAM size value for a given adapter to a ServerSpec value."""
+        return int(size.ram)
+
+    @classmethod
+    def get_cpu(cls, size) -> float:
+        """Returns a CPU count value for a given adapter as a ServerSpec value."""
+        raise NotImplementedError()
+
+    @classmethod
+    def get_disk(cls, size) -> int:
+        """Translates a disk size value for a given adapter to a ServerSpec value."""
+        return int(size.disk)
+
+    @classmethod
+    def get_transfer(cls, size) -> int:
+        """Translates a transfer limit value for a given adapter to a ServerSpec value."""
+        return int(size.bandwidth)
+
+    @classmethod
+    def get_hourly_price(cls, size) -> float:
+        """Translates an hourly cost value for a given adapter to a ServerSpec value."""
+        if size.price:
+            return float(size.price)
+        return size.price
+
+    @classmethod
+    def get_monthly_price(cls, size) -> float:
+        """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
+        return float(Decimal(cls.get_hourly_price(size) or 0) * 30 * 24) or None
 
     @classmethod
     def _config_error(cls, msg, **kwargs):
