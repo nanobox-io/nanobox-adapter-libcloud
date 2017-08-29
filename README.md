@@ -9,6 +9,7 @@ In order to grab catalog data, default credentials are required for each support
 -   `GCE_SERVICE_KEY`\*
 -   `GCE_PROJECT_ID`\*
 -   `GCE_MONTHLY_DISK_COST`
+-   `GCE_MONTHLY_SSD_COST`
 
 ## Et Cetera
 More info will be added to this README as it comes up.

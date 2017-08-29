@@ -90,7 +90,6 @@ class Adapter(object, metaclass=AdapterBase):
         # Build catalog
         catalog = []
 
-        # TODO: Actually build the catalog
         try:
             # Use generic driver because there are no auth tokens
             provider = self._get_generic_driver()
@@ -99,20 +98,21 @@ class Adapter(object, metaclass=AdapterBase):
                     id=location.id,
                     name=location.name,
                     plans=[
-                        # TODO: Generate plans list, and add provider.list_sizes(location) to each.
                         models.ServerPlan(
-                            id=self.id,
-                            name=self.name,
-                            specs=[models.ServerSpec(
-                                id=size.id,
-                                ram=self.get_ram(size),
-                                cpu=self.get_cpu(size),
-                                disk=self.get_disk(size),
-                                transfer=self.get_transfer(size),
-                                dollars_per_hr=self.get_hourly_price(size),
-                                dollars_per_mo=self.get_monthly_price(size)
-                            ) for size in provider.list_sizes(location)]
-                        )
+                            id=plan_id,
+                            name=plan_name,
+                            specs=[
+                                models.ServerSpec(
+                                    id=self.get_size_id(provider, location, plan_id, size),
+                                    ram=self.get_ram(provider, location, plan_id, size),
+                                    cpu=self.get_cpu(provider, location, plan_id, size),
+                                    disk=self.get_disk(provider, location, plan_id, size),
+                                    transfer=self.get_transfer(provider, location, plan_id, size),
+                                    dollars_per_hr=self.get_hourly_price(provider, location, plan_id, size),
+                                    dollars_per_mo=self.get_monthly_price(provider, location, plan_id, size)
+                                ) for size in self.get_sizes(provider, location, plan_id)
+                            ]
+                        ) for plan_id, plan_name in self.get_plans(provider, location)
                     ]
                 ).to_nanobox())
         except libcloud.common.types.ProviderError:
@@ -177,36 +177,51 @@ class Adapter(object, metaclass=AdapterBase):
         return hasattr(cls, 'rename_server') and callable(cls.rename_server)
 
     @classmethod
-    def get_ram(cls, size) -> int:
+    def get_plans(cls, provider, location) -> list:
+        """Retrieves a list of plans for a given adapter."""
+        return [('standard', 'Standard')]
+
+    @classmethod
+    def get_sizes(cls, provider, location, plan) -> list:
+        """Retrieves a list of sizes for a given adapter."""
+        return provider.list_sizes(location)
+
+    @classmethod
+    def get_size_id(cls, provider, location, plan, size) -> str:
+        """Translates a server size ID for a given adapter to a ServerSpec value."""
+        return size.id
+
+    @classmethod
+    def get_ram(cls, provider, location, plan, size) -> int:
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
         return int(size.ram)
 
     @classmethod
-    def get_cpu(cls, size) -> float:
+    def get_cpu(cls, provider, location, plan, size) -> float:
         """Returns a CPU count value for a given adapter as a ServerSpec value."""
         raise NotImplementedError()
 
     @classmethod
-    def get_disk(cls, size) -> int:
+    def get_disk(cls, provider, location, plan, size) -> int:
         """Translates a disk size value for a given adapter to a ServerSpec value."""
         return int(size.disk)
 
     @classmethod
-    def get_transfer(cls, size) -> int:
+    def get_transfer(cls, provider, location, plan, size) -> int:
         """Translates a transfer limit value for a given adapter to a ServerSpec value."""
         return int(size.bandwidth)
 
     @classmethod
-    def get_hourly_price(cls, size) -> float:
+    def get_hourly_price(cls, provider, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""
         if size.price:
             return float(size.price)
         return size.price
 
     @classmethod
-    def get_monthly_price(cls, size) -> float:
+    def get_monthly_price(cls, provider, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
-        return float(Decimal(cls.get_hourly_price(size) or 0) * 30 * 24) or None
+        return float(Decimal(cls.get_hourly_price(provider, location, plan, size) or 0) * 30 * 24) or None
 
     @classmethod
     def _config_error(cls, msg, **kwargs):
