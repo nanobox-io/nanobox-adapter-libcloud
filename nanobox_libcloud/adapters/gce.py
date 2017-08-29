@@ -23,21 +23,14 @@ class Gce(Adapter):
 
     _plans = [
         ('standard', 'Standard'),
-        ('highmem', 'High Memory'),
         ('highcpu', 'High CPU'),
+        ('highmem', 'High Memory'),
         ('standard-ssd', 'Standard with SSD'),
-        ('highmem-ssd', 'High Memory with SSD'),
-        ('highcpu-ssd', 'High CPU with SSD')
+        ('highcpu-ssd', 'High CPU with SSD'),
+        ('highmem-ssd', 'High Memory with SSD')
     ]
 
-    _sizes = {
-        'standard': [],
-        'standard-ssd': [],
-        'highmem': [],
-        'highmem-ssd': [],
-        'highcpu': [],
-        'highcpu-ssd': []
-    }
+    _sizes = {}
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
@@ -51,6 +44,23 @@ class Gce(Adapter):
             'ssd': Decimal(os.getenv('GCE_MONTHLY_SSD_COST')) / 30 / 24
         }
 
+    # Internal overrides for provider retrieval
+    @classmethod
+    def _get_request_credentials(cls, headers):
+        """Extracts credentials from request headers."""
+        return {
+            "user_id": headers.get("Service-Email"),
+            "key": headers.get("Service-Key"),
+            "project": headers.get("Project-Id")
+        }
+
+    @classmethod
+    def _get_user_driver(cls, **auth_credentials):
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+        auth_credentials['auth_type'] = 'SA'
+        return super()._get_user_driver(**auth_credentials)
+
+    # Internal overrides for /meta
     @classmethod
     def get_default_region(cls):
         """Gets the default region ID."""
@@ -66,15 +76,26 @@ class Gce(Adapter):
         """Gets the default plan ID."""
         return 'standard'
 
+    # Internal overrides for /catalog
     @classmethod
     def get_plans(cls, provider, location):
         """Retrieves a list of plans for a given adapter."""
+        cls._sizes = {
+            'standard': [],
+            'standard-ssd': [],
+            'highcpu': [],
+            'highcpu-ssd': [],
+            'highmem': [],
+            'highmem-ssd': [],
+        }
+
         for size in provider.list_sizes(location):
             plan = size.name.split('-')[1]
             if plan in ['micro', 'small']:
                 plan = 'standard'
             cls._sizes[plan].append(size)
             cls._sizes[plan + '-ssd'].append(size)
+
         return cls._plans
 
     @classmethod
@@ -114,18 +135,3 @@ class Gce(Adapter):
         base_price = super().get_hourly_price(provider, location, plan, size) or 0
         disk_size = cls.get_disk(provider, location, plan, size)
         return (base_price + float(disk_size * cls._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
-
-    @classmethod
-    def _get_request_credentials(cls, headers):
-        """Extracts credentials from request headers."""
-        return {
-            "user_id": headers.get("Service-Email"),
-            "key": headers.get("Service-Key"),
-            "project": headers.get("Project-Id")
-        }
-
-    @classmethod
-    def _get_user_driver(cls, **auth_credentials):
-        """Returns a driver instance for a user with the appropriate authentication credentials set."""
-        auth_credentials['auth_type'] = 'SA'
-        return super()._get_user_driver(**auth_credentials)

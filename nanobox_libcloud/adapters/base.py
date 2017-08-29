@@ -64,6 +64,7 @@ class Adapter(object, metaclass=AdapterBase):
 
     generic_credentials = {} # type: object
 
+    # Controller entry points
     def get_meta(self) -> models.AdapterMeta:
         """Returns the metadata of this adapter."""
         return models.AdapterMeta(
@@ -129,6 +130,7 @@ class Adapter(object, metaclass=AdapterBase):
         except libcloud.common.types.ProviderError:
             return False
 
+    # Provider retrieval
     @classmethod
     def _get_driver_class(cls) -> typing.Type[NodeDriver]:
         """Returns the libcloud driver class for the id of this adapter."""
@@ -144,6 +146,7 @@ class Adapter(object, metaclass=AdapterBase):
         """Returns a driver instance for an anonymous user."""
         return cls._get_user_driver(**cls.generic_credentials)
 
+    # Internal (overridable) methods for /meta
     @classmethod
     def get_id(cls) -> str:
         """"Returns the id of this adapter."""
@@ -176,13 +179,14 @@ class Adapter(object, metaclass=AdapterBase):
         """Returns whether this adapter allows servers to be renamed."""
         return hasattr(cls, 'rename_server') and callable(cls.rename_server)
 
+    # Internal (overridable) methods for /catalog
     @classmethod
-    def get_plans(cls, provider, location) -> list:
+    def get_plans(cls, provider, location) -> typing.List[typing.Tuple[str, str]]:
         """Retrieves a list of plans for a given adapter."""
         return [('standard', 'Standard')]
 
     @classmethod
-    def get_sizes(cls, provider, location, plan) -> list:
+    def get_sizes(cls, provider, location, plan) -> typing.List[NodeSize]:
         """Retrieves a list of sizes for a given adapter."""
         return provider.list_sizes(location)
 
@@ -223,6 +227,7 @@ class Adapter(object, metaclass=AdapterBase):
         """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
         return float(Decimal(cls.get_hourly_price(provider, location, plan, size) or 0) * 30 * 24) or None
 
+    # Misc internal methods
     @classmethod
     def _config_error(cls, msg, **kwargs):
         raise ValueError(msg.format(cls=cls.__name__, **kwargs))
