@@ -45,8 +45,7 @@ class Gce(Adapter):
         }
 
     # Internal overrides for provider retrieval
-    @classmethod
-    def _get_request_credentials(cls, headers):
+    def _get_request_credentials(self, headers):
         """Extracts credentials from request headers."""
         return {
             "user_id": headers.get("Service-Email"),
