@@ -54,8 +54,7 @@ class Gce(Adapter):
             "project": headers.get("Project-Id")
         }
 
-    @classmethod
-    def _get_user_driver(cls, **auth_credentials):
+    def _get_user_driver(self, **auth_credentials):
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
         auth_credentials['auth_type'] = 'SA'
         return super()._get_user_driver(**auth_credentials)
@@ -77,10 +76,9 @@ class Gce(Adapter):
         return 'standard'
 
     # Internal overrides for /catalog
-    @classmethod
-    def get_plans(cls, provider, location):
+    def _get_plans(self, location):
         """Retrieves a list of plans for a given adapter."""
-        cls._sizes = {
+        self._sizes = {
             'standard': [],
             'standard-ssd': [],
             'highcpu': [],
@@ -89,35 +87,36 @@ class Gce(Adapter):
             'highmem-ssd': [],
         }
 
-        for size in provider.list_sizes(location):
+        for size in self._get_generic_driver().list_sizes(location):
             plan = size.name.split('-')[1]
+            
             if plan in ['micro', 'small']:
                 plan = 'standard'
-            cls._sizes[plan].append(size)
-            cls._sizes[plan + '-ssd'].append(size)
+                
+            self._sizes[plan].append(size)
+            self._sizes[plan + '-ssd'].append(size)
 
-        return cls._plans
+        return self._plans
 
-    @classmethod
-    def get_sizes(cls, provider, location, plan):
+    def _get_sizes(self, location, plan):
         """Retrieves a list of sizes for a given adapter."""
-        return cls._sizes[plan]
+        return self._sizes[plan]
 
-    @classmethod
-    def get_size_id(cls, provider, location, plan, size):
+    def _get_size_id(self, location, plan, size):
         """Translates a server size ID for a given adapter to a ServerSpec value."""
         return size.id + ('-ssd' if plan.endswith('-ssd') else '')
 
-    @classmethod
-    def get_cpu(cls, provider, location, plan, size):
+    def _get_cpu(self, location, plan, size):
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
+        
         if size.extra['guestCpus']:
             return float(size.extra['guestCpus'])
+            
         return size.extra['guestCpus']
 
-    @classmethod
-    def get_disk(cls, provider, location, plan, size):
+    def _get_disk(self, location, plan, size):
         """Translates a disk size value for a given adapter to a ServerSpec value."""
+        
         gb_ram = Decimal(size.ram) / 1024
         for test, value in [
             [1, 20],
@@ -127,11 +126,13 @@ class Gce(Adapter):
         ]:
             if gb_ram < test:
                 return value
+                
         return int(gb_ram * 10)
 
-    @classmethod
-    def get_hourly_price(cls, provider, location, plan, size):
+    def _get_hourly_price(self, location, plan, size):
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""
-        base_price = super().get_hourly_price(provider, location, plan, size) or 0
-        disk_size = cls.get_disk(provider, location, plan, size)
-        return (base_price + float(disk_size * cls._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
+        
+        base_price = super()._get_hourly_price(location, plan, size) or 0
+        disk_size = self._get_disk(location, plan, size)
+        
+        return (base_price + float(disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None

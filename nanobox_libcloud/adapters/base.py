@@ -93,27 +93,26 @@ class Adapter(object, metaclass=AdapterBase):
 
         try:
             # Use generic driver because there are no auth tokens
-            provider = self._get_generic_driver()
-            for location in provider.list_locations():
+            for location in self._get_locations():
                 catalog.append(models.ServerRegion(
-                    id=location.id,
-                    name=location.name,
-                    plans=[
+                    id = location.id,
+                    name = location.name,
+                    plans = [
                         models.ServerPlan(
-                            id=plan_id,
-                            name=plan_name,
-                            specs=[
+                            id = plan_id,
+                            name = plan_name,
+                            specs = [
                                 models.ServerSpec(
-                                    id=self.get_size_id(provider, location, plan_id, size),
-                                    ram=self.get_ram(provider, location, plan_id, size),
-                                    cpu=self.get_cpu(provider, location, plan_id, size),
-                                    disk=self.get_disk(provider, location, plan_id, size),
-                                    transfer=self.get_transfer(provider, location, plan_id, size),
-                                    dollars_per_hr=self.get_hourly_price(provider, location, plan_id, size),
-                                    dollars_per_mo=self.get_monthly_price(provider, location, plan_id, size)
-                                ) for size in self.get_sizes(provider, location, plan_id)
+                                    id = self._get_size_id(location, plan_id, size),
+                                    ram = self._get_ram(location, plan_id, size),
+                                    cpu = self._get_cpu(location, plan_id, size),
+                                    disk = self._get_disk(location, plan_id, size),
+                                    transfer = self._get_transfer(location, plan_id, size),
+                                    dollars_per_hr = self._get_hourly_price(location, plan_id, size),
+                                    dollars_per_mo = self._get_monthly_price(location, plan_id, size)
+                                ) for size in self._get_sizes(location, plan_id)
                             ]
-                        ) for plan_id, plan_name in self.get_plans(provider, location)
+                        ) for plan_id, plan_name in self._get_plans(location)
                     ]
                 ).to_nanobox())
         except libcloud.common.types.ProviderError:
@@ -131,20 +130,25 @@ class Adapter(object, metaclass=AdapterBase):
             return False
 
     # Provider retrieval
-    @classmethod
-    def _get_driver_class(cls) -> typing.Type[NodeDriver]:
+    def _get_driver_class(self) -> typing.Type[NodeDriver]:
         """Returns the libcloud driver class for the id of this adapter."""
-        return libcloud.get_driver(libcloud.DriverType.COMPUTE, cls.get_id())
+        return libcloud.get_driver(libcloud.DriverType.COMPUTE, self.get_id())
 
-    @classmethod
-    def _get_user_driver(cls, **auth_credentials) -> NodeDriver:
+    def _get_user_driver(self, **auth_credentials) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
-        return cls._get_driver_class()(**auth_credentials)
+        
+        if self._user_driver == None:
+            self._user_driver = self._get_driver_class()(**auth_credentials)
+        
+        return self._user_driver
 
-    @classmethod
-    def _get_generic_driver(cls) -> NodeDriver:
+    def _get_generic_driver(self) -> NodeDriver:
         """Returns a driver instance for an anonymous user."""
-        return cls._get_user_driver(**cls.generic_credentials)
+        
+        if self._generic_driver == None:
+            self._generic_driver = self._get_user_driver(**self.generic_credentials)
+        
+        return self._generic_driver
 
     # Internal (overridable) methods for /meta
     @classmethod
@@ -180,52 +184,48 @@ class Adapter(object, metaclass=AdapterBase):
         return hasattr(cls, 'rename_server') and callable(cls.rename_server)
 
     # Internal (overridable) methods for /catalog
-    @classmethod
-    def get_plans(cls, provider, location) -> typing.List[typing.Tuple[str, str]]:
-        """Retrieves a list of plans for a given adapter."""
+    
+    def _get_locations(self):
+        """Retrieves a list of datacenter locations."""
+        self._get_generic_driver().list_locations()
+    
+    def _get_plans(self, location) -> typing.List[typing.Tuple[str, str]]:
+        """Retrieves a list of plans."""
         return [('standard', 'Standard')]
 
-    @classmethod
-    def get_sizes(cls, provider, location, plan) -> typing.List[NodeSize]:
-        """Retrieves a list of sizes for a given adapter."""
-        return provider.list_sizes(location)
+    def _get_sizes(self, location, plan) -> typing.List[NodeSize]:
+        """Retrieves a list of sizes."""
+        return self._get_generic_driver().list_sizes(location)
 
-    @classmethod
-    def get_size_id(cls, provider, location, plan, size) -> str:
+    def _get_size_id(self, location, plan, size) -> str:
         """Translates a server size ID for a given adapter to a ServerSpec value."""
         return size.id
 
-    @classmethod
-    def get_ram(cls, provider, location, plan, size) -> int:
+    def _get_ram(self, location, plan, size) -> int:
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
         return int(size.ram)
 
-    @classmethod
-    def get_cpu(cls, provider, location, plan, size) -> float:
+    def _get_cpu(self, location, plan, size) -> float:
         """Returns a CPU count value for a given adapter as a ServerSpec value."""
         raise NotImplementedError()
 
-    @classmethod
-    def get_disk(cls, provider, location, plan, size) -> int:
+    def _get_disk(self, location, plan, size) -> int:
         """Translates a disk size value for a given adapter to a ServerSpec value."""
         return int(size.disk)
 
-    @classmethod
-    def get_transfer(cls, provider, location, plan, size) -> int:
+    def _get_transfer(self, location, plan, size) -> int:
         """Translates a transfer limit value for a given adapter to a ServerSpec value."""
         return int(size.bandwidth)
 
-    @classmethod
-    def get_hourly_price(cls, provider, location, plan, size) -> float:
+    def _get_hourly_price(self, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""
         if size.price:
             return float(size.price)
         return size.price
 
-    @classmethod
-    def get_monthly_price(cls, provider, location, plan, size) -> float:
+    def _get_monthly_price(self, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
-        return float(Decimal(cls.get_hourly_price(provider, location, plan, size) or 0) * 30 * 24) or None
+        return float(Decimal(self.get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
     # Misc internal methods
     @classmethod

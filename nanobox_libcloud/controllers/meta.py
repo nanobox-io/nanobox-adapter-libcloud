@@ -24,7 +24,7 @@ def meta(adapter_id):
     """Provides the metadata for a certain adapter."""
     adapter = get_adapter(adapter_id)
     if adapter:
-        return output.success(adapter.get_meta(adapter))
+        return output.success(adapter.get_meta())
     return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.")
 
 @app.route('/<adapter_id>/catalog', methods=['GET'])
