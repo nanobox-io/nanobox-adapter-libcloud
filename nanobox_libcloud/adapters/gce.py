@@ -2,16 +2,22 @@ import os
 from decimal import Decimal
 
 from nanobox_libcloud.adapters import Adapter
+from nanobox_libcloud.adapters.base import RebootMixin
 
 
-class Gce(Adapter):
+class Gce(RebootMixin, Adapter):
     """
     Adapter for the Google Compute Engine service
     """
+
     # Adapter metadata
     id = "gce"
     name = "Google Compute Engine"
     server_nick_name = "instance"
+
+    # Provider-wide server properties
+    server_ssh_auth_method = 'password'
+    server_ssh_key_method = 'object'
 
     # Provider auth properties
     auth_credential_fields = [
@@ -21,6 +27,7 @@ class Gce(Adapter):
     ]
     auth_instructions = ""
 
+    # Adapter-sepcific properties
     _plans = [
         ('standard', 'Standard'),
         ('highcpu', 'High CPU'),
@@ -29,7 +36,6 @@ class Gce(Adapter):
         ('highcpu-ssd', 'High CPU with SSD'),
         ('highmem-ssd', 'High Memory with SSD')
     ]
-
     _sizes = {}
 
     def __init__(self, **kwargs):
@@ -47,6 +53,7 @@ class Gce(Adapter):
     # Internal overrides for provider retrieval
     def _get_request_credentials(self, headers):
         """Extracts credentials from request headers."""
+
         return {
             "user_id": headers.get("Service-Email"),
             "key": headers.get("Service-Key"),
@@ -55,28 +62,31 @@ class Gce(Adapter):
 
     def _get_user_driver(self, **auth_credentials):
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
+
         auth_credentials['auth_type'] = 'SA'
+
         return super()._get_user_driver(**auth_credentials)
 
     # Internal overrides for /meta
-    @classmethod
-    def get_default_region(cls):
+    def get_default_region(self):
         """Gets the default region ID."""
+
         return '2210'
 
-    @classmethod
-    def get_default_size(cls):
+    def get_default_size(self):
         """Gets the default size ID."""
+
         return '1000'
 
-    @classmethod
-    def get_default_plan(cls):
+    def get_default_plan(self):
         """Gets the default plan ID."""
+
         return 'standard'
 
     # Internal overrides for /catalog
     def _get_plans(self, location):
         """Retrieves a list of plans for a given adapter."""
+
         self._sizes = {
             'standard': [],
             'standard-ssd': [],
@@ -88,10 +98,10 @@ class Gce(Adapter):
 
         for size in self._get_generic_driver().list_sizes(location):
             plan = size.name.split('-')[1]
-            
+
             if plan in ['micro', 'small']:
                 plan = 'standard'
-                
+
             self._sizes[plan].append(size)
             self._sizes[plan + '-ssd'].append(size)
 
@@ -99,23 +109,25 @@ class Gce(Adapter):
 
     def _get_sizes(self, location, plan):
         """Retrieves a list of sizes for a given adapter."""
+
         return self._sizes[plan]
 
     def _get_size_id(self, location, plan, size):
         """Translates a server size ID for a given adapter to a ServerSpec value."""
+
         return size.id + ('-ssd' if plan.endswith('-ssd') else '')
 
     def _get_cpu(self, location, plan, size):
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
-        
+
         if size.extra['guestCpus']:
             return float(size.extra['guestCpus'])
-            
+
         return size.extra['guestCpus']
 
     def _get_disk(self, location, plan, size):
         """Translates a disk size value for a given adapter to a ServerSpec value."""
-        
+
         gb_ram = Decimal(size.ram) / 1024
         for test, value in [
             [1, 20],
@@ -125,13 +137,13 @@ class Gce(Adapter):
         ]:
             if gb_ram < test:
                 return value
-                
+
         return int(gb_ram * 10)
 
     def _get_hourly_price(self, location, plan, size):
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""
-        
+
         base_price = super()._get_hourly_price(location, plan, size) or 0
         disk_size = self._get_disk(location, plan, size)
-        
+
         return (base_price + float(disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None

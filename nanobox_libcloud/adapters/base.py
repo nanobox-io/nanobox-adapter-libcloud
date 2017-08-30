@@ -2,7 +2,7 @@ import typing
 from decimal import Decimal
 
 import libcloud
-from libcloud.compute.base import NodeDriver
+from libcloud.compute.base import NodeDriver, NodeLocation, NodeSize
 from libcloud.compute.types import Provider
 
 from nanobox_libcloud.utils import models
@@ -22,7 +22,6 @@ class AdapterBase(type):
 
     @classmethod
     def register(mcs, cls):
-        cls.__init__(cls)
         adapter_id = cls.get_id()
 
         # Check if there is an existing adapter with the same id
@@ -62,10 +61,12 @@ class Adapter(object, metaclass=AdapterBase):
     auth_credential_fields = []  # type: typing.Tuple[str, str]
     auth_instructions = ""  # type: str
 
-    generic_credentials = {} # type: object
+    generic_credentials = {}  # type: dict
+    _generic_driver = None  # type: typing.Type[NodeDriver]
+    _user_driver = None  # type: typing.Type[NodeDriver]
 
     # Controller entry points
-    def get_meta(self) -> models.AdapterMeta:
+    def do_meta(self) -> models.AdapterMeta:
         """Returns the metadata of this adapter."""
         return models.AdapterMeta(
             id=self.id,
@@ -86,7 +87,7 @@ class Adapter(object, metaclass=AdapterBase):
             auth_instructions=self.auth_instructions,
         ).to_nanobox()
 
-    def get_catalog(self) -> typing.List[models.ServerRegion]:
+    def do_catalog(self) -> typing.List[models.ServerRegion]:
         """Returns the catalog for this adapter."""
         # Build catalog
         catalog = []
@@ -121,7 +122,7 @@ class Adapter(object, metaclass=AdapterBase):
 
         return catalog
 
-    def post_verify(self, headers) -> bool:
+    def do_verify(self, headers) -> bool:
         """Verify the account credentials."""
         try:
             provider = self._get_user_driver(**self._get_request_credentials(headers))
@@ -136,18 +137,14 @@ class Adapter(object, metaclass=AdapterBase):
 
     def _get_user_driver(self, **auth_credentials) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
-        
         if self._user_driver == None:
             self._user_driver = self._get_driver_class()(**auth_credentials)
-        
         return self._user_driver
 
     def _get_generic_driver(self) -> NodeDriver:
         """Returns a driver instance for an anonymous user."""
-        
         if self._generic_driver == None:
-            self._generic_driver = self._get_user_driver(**self.generic_credentials)
-        
+            self._generic_driver = self._get_driver_class()(**self.generic_credentials)
         return self._generic_driver
 
     # Internal (overridable) methods for /meta
@@ -184,11 +181,10 @@ class Adapter(object, metaclass=AdapterBase):
         return hasattr(cls, 'rename_server') and callable(cls.rename_server)
 
     # Internal (overridable) methods for /catalog
-    
-    def _get_locations(self):
+    def _get_locations(self) -> typing.List[NodeLocation]:
         """Retrieves a list of datacenter locations."""
-        self._get_generic_driver().list_locations()
-    
+        return self._get_generic_driver().list_locations()
+
     def _get_plans(self, location) -> typing.List[typing.Tuple[str, str]]:
         """Retrieves a list of plans."""
         return [('standard', 'Standard')]
@@ -205,7 +201,8 @@ class Adapter(object, metaclass=AdapterBase):
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
         return int(size.ram)
 
-    def _get_cpu(self, location, plan, size) -> float:
+    @classmethod
+    def _get_cpu(cls, location, plan, size) -> float:
         """Returns a CPU count value for a given adapter as a ServerSpec value."""
         raise NotImplementedError()
 
@@ -225,7 +222,7 @@ class Adapter(object, metaclass=AdapterBase):
 
     def _get_monthly_price(self, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
-        return float(Decimal(self.get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
+        return float(Decimal(self._get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
     # Misc internal methods
     @classmethod

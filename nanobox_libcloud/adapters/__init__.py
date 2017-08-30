@@ -6,7 +6,7 @@ from nanobox_libcloud.adapters.base import Adapter, AdapterBase
 
 def get_adapter(adapter_id: str) -> Adapter:
     """Returns the adapter with the given id or `None` if there is none."""
-    return AdapterBase.registry.get(adapter_id)
+    return AdapterBase.registry.get(adapter_id)()
 
 
 def import_adapters():
