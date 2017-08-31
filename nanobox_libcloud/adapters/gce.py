@@ -16,7 +16,6 @@ class Gce(RebootMixin, Adapter):
     server_nick_name = "instance"
 
     # Provider-wide server properties
-    server_ssh_auth_method = 'password'
     server_ssh_key_method = 'object'
 
     # Provider auth properties

@@ -18,7 +18,7 @@ def usage(adapter_id):
     adapter = get_adapter(adapter_id)
     if adapter:
         return render_template("usage.html", adapter=adapter)
-    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.")
+    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
 # Actual metadata endpoints for the Nanobox Provider Adapter API
 @app.route('/<adapter_id>/meta', methods=['GET'])
@@ -27,7 +27,7 @@ def meta(adapter_id):
     adapter = get_adapter(adapter_id)
     if adapter:
         return output.success(adapter.do_meta())
-    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.")
+    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
 @app.route('/<adapter_id>/catalog', methods=['GET'])
 def catalog(adapter_id):
@@ -35,7 +35,7 @@ def catalog(adapter_id):
     adapter = get_adapter(adapter_id)
     if adapter:
         return output.success(adapter.do_catalog())
-    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.")
+    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
 @app.route('/<adapter_id>/verify', methods=['POST'])
 def verify(adapter_id):
@@ -45,4 +45,4 @@ def verify(adapter_id):
         if adapter.do_verify(request.headers):
             return ""
         return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
-    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.")
+    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
