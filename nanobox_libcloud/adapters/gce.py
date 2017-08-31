@@ -128,6 +128,7 @@ class Gce(RebootMixin, Adapter):
         """Translates a disk size value for a given adapter to a ServerSpec value."""
 
         gb_ram = Decimal(size.ram) / 1024
+
         for test, value in [
             [1, 20],
             [2, 30],

@@ -12,12 +12,15 @@ class AdapterBase(type):
     """
     Metaclass for Adapter classes registering defined adapters.
     """
+
     registry = {}
 
     def __new__(mcs, name, bases, attrs):
         cls = super(AdapterBase, mcs).__new__(mcs, name, bases, attrs)
+
         if name != 'Adapter':
             mcs.register(cls)
+
         return cls
 
     @classmethod
@@ -44,6 +47,7 @@ class Adapter(object, metaclass=AdapterBase):
 
     If subclasses are placed in the same package as this module they will automatically be discovered.
     """
+
     # Adapter metadata
     id = None  # type: str
     name = ''  # type: str
@@ -68,6 +72,7 @@ class Adapter(object, metaclass=AdapterBase):
     # Controller entry points
     def do_meta(self) -> models.AdapterMeta:
         """Returns the metadata of this adapter."""
+
         return models.AdapterMeta(
             id=self.id,
             name=self.name,
@@ -89,6 +94,7 @@ class Adapter(object, metaclass=AdapterBase):
 
     def do_catalog(self) -> typing.List[models.ServerRegion]:
         """Returns the catalog for this adapter."""
+
         # Build catalog
         catalog = []
 
@@ -124,104 +130,140 @@ class Adapter(object, metaclass=AdapterBase):
 
     def do_verify(self, headers) -> bool:
         """Verify the account credentials."""
+
         try:
-            provider = self._get_user_driver(**self._get_request_credentials(headers))
+            self._get_user_driver(**self._get_request_credentials(headers))
             return True
         except libcloud.common.types.ProviderError:
             return False
 
+    def do_server_create(self, headers, data) -> models.AdapterServer:
+        """Create a server with a certain provider."""
+        pass
+
+    def do_server_query(self, headers, data) -> models.AdapterServer:
+        """Query a server with a certain provider."""
+        pass
+
+    def do_server_cancel(self, headers, data) -> bool:
+        """Cancel a server with a certain provider."""
+        pass
+
     # Provider retrieval
     def _get_driver_class(self) -> typing.Type[NodeDriver]:
         """Returns the libcloud driver class for the id of this adapter."""
+
         return libcloud.get_driver(libcloud.DriverType.COMPUTE, self.get_id())
 
     def _get_user_driver(self, **auth_credentials) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
+
         if self._user_driver == None:
             self._user_driver = self._get_driver_class()(**auth_credentials)
+
         return self._user_driver
 
     def _get_generic_driver(self) -> NodeDriver:
         """Returns a driver instance for an anonymous user."""
+
         if self._generic_driver == None:
             self._generic_driver = self._get_driver_class()(**self.generic_credentials)
+
         return self._generic_driver
 
     # Internal (overridable) methods for /meta
     @classmethod
     def get_id(cls) -> str:
         """"Returns the id of this adapter."""
+
         if not cls.id:
             cls._config_error("No id set for adapter {cls}.")
+
         return cls.id
 
     @classmethod
     def get_default_region(cls) -> str:
         """Returns the id of the default region for this adapter."""
+
         raise NotImplementedError()
 
     @classmethod
     def get_default_size(cls) -> str:
         """Returns the id of the default server size for this adapter."""
+
         raise NotImplementedError()
 
     @classmethod
     def get_default_plan(cls) -> str:
         """Returns the id of the default plan for this adapter."""
+
         raise NotImplementedError()
 
     @classmethod
     def can_reboot(cls) -> bool:
         """Returns whether this adapter allows servers to be rebooted."""
-        return hasattr(cls, 'reboot_server') and callable(cls.reboot_server)
+
+        return hasattr(cls, 'do_server_reboot') and callable(cls.do_server_reboot)
 
     @classmethod
     def can_rename(cls) -> bool:
         """Returns whether this adapter allows servers to be renamed."""
-        return hasattr(cls, 'rename_server') and callable(cls.rename_server)
+
+        return hasattr(cls, 'do_server_rename') and callable(cls.do_server_rename)
 
     # Internal (overridable) methods for /catalog
     def _get_locations(self) -> typing.List[NodeLocation]:
         """Retrieves a list of datacenter locations."""
+
         return self._get_generic_driver().list_locations()
 
     def _get_plans(self, location) -> typing.List[typing.Tuple[str, str]]:
         """Retrieves a list of plans."""
+
         return [('standard', 'Standard')]
 
     def _get_sizes(self, location, plan) -> typing.List[NodeSize]:
         """Retrieves a list of sizes."""
+
         return self._get_generic_driver().list_sizes(location)
 
     def _get_size_id(self, location, plan, size) -> str:
         """Translates a server size ID for a given adapter to a ServerSpec value."""
+
         return size.id
 
     def _get_ram(self, location, plan, size) -> int:
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
+
         return int(size.ram)
 
     @classmethod
     def _get_cpu(cls, location, plan, size) -> float:
         """Returns a CPU count value for a given adapter as a ServerSpec value."""
+
         raise NotImplementedError()
 
     def _get_disk(self, location, plan, size) -> int:
         """Translates a disk size value for a given adapter to a ServerSpec value."""
+
         return int(size.disk)
 
     def _get_transfer(self, location, plan, size) -> int:
         """Translates a transfer limit value for a given adapter to a ServerSpec value."""
+
         return int(size.bandwidth)
 
     def _get_hourly_price(self, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""
+
         if size.price:
             return float(size.price)
+
         return size.price
 
     def _get_monthly_price(self, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
+
         return float(Decimal(self._get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
     # Misc internal methods
@@ -234,8 +276,10 @@ class RebootMixin(object):
     """
     Mixin for adapters to signify that servers can be rebooted.
     """
+
     @classmethod
-    def reboot_server(cls, server):
+    def do_server_reboot(cls, headers, data) -> bool:
+        """Reboot a server with a certain provider."""
         raise NotImplementedError()
 
 
@@ -243,6 +287,8 @@ class RenameMixin(object):
     """
     Mixin for adapters to signify that servers can be renamed.
     """
+
     @classmethod
-    def rename_server(cls, server):
+    def do_server_rename(cls, headers, data) -> bool:
+        """Rename a server with a certain provider."""
         raise NotImplementedError()
