@@ -9,14 +9,20 @@ from nanobox_libcloud.utils import output
 def server_create(adapter_id):
     """Creates a server using a certain adapter."""
     adapter = get_adapter(adapter_id)
-    if adapter:
-        if adapter.do_verify(request.headers):
-            result = adapter.do_server_create(request.headers, request.json)
-            if result.error:
-                return output.failure(result.error, result.status)
-            return output.success(result.data, result.status)
+    
+    if not adapter:
+        return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
+        
+    if not adapter.do_verify(request.headers):
         return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
-    return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
+        
+    result = adapter.do_server_create(request.headers, request.json)
+    
+    if result.error:
+        return output.failure(result.error, result.status)
+        
+    return output.success(result.data, result.status)
+        
 
 @app.route('/<adapter_id>/servers/<server_id>', methods=['GET'])
 def server_query(adapter_id):
