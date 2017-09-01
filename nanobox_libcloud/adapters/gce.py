@@ -1,4 +1,5 @@
 import os
+from urllib import parse
 from decimal import Decimal
 
 from nanobox_libcloud.adapters import Adapter
@@ -36,6 +37,7 @@ class Gce(RebootMixin, Adapter):
         ('highmem-ssd', 'High Memory with SSD')
     ]
     _sizes = {}
+    _image_family = 'ubuntu-1604-lts'
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
@@ -55,7 +57,7 @@ class Gce(RebootMixin, Adapter):
 
         return {
             "user_id": headers.get("Service-Email"),
-            "key": headers.get("Service-Key"),
+            "key": parse.unquote(headers.get("Service-Key")),
             "project": headers.get("Project-Id")
         }
 
@@ -70,12 +72,12 @@ class Gce(RebootMixin, Adapter):
     def get_default_region(self):
         """Gets the default region ID."""
 
-        return '2210'
+        return 'us-west1-a'
 
     def get_default_size(self):
         """Gets the default size ID."""
 
-        return '1000'
+        return 'f1-micro'
 
     def get_default_plan(self):
         """Gets the default plan ID."""
@@ -111,10 +113,15 @@ class Gce(RebootMixin, Adapter):
 
         return self._sizes[plan]
 
+    def _get_location_id(self, location):
+        """Translates a location ID for a given adapter to a ServerSpec value."""
+
+        return location.name
+
     def _get_size_id(self, location, plan, size):
         """Translates a server size ID for a given adapter to a ServerSpec value."""
 
-        return size.id + ('-ssd' if plan.endswith('-ssd') else '')
+        return size.name + ('-ssd' if plan.endswith('-ssd') else '')
 
     def _get_cpu(self, location, plan, size):
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
@@ -130,10 +137,11 @@ class Gce(RebootMixin, Adapter):
         gb_ram = Decimal(size.ram) / 1024
 
         for test, value in [
-            [1, 20],
-            [2, 30],
-            [4, 40],
-            [8, 60],
+            # if <, disk is #
+            [    1,      20],
+            [    2,      30],
+            [    4,      40],
+            [    8,      60],
         ]:
             if gb_ram < test:
                 return value
@@ -147,3 +155,33 @@ class Gce(RebootMixin, Adapter):
         disk_size = self._get_disk(location, plan, size)
 
         return (base_price + float(disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
+
+    # Internal overrides for /server endpoints
+    def _get_create_args(self, data):
+        """Returns the args used to create a server for this adapter."""
+
+        driver = self._get_user_driver()
+        disk_type = 'pd-ssd' if data['size'].endswith('-ssd') else 'pd-standard'
+        size = driver.ex_get_size(data['size'].split('-ssd')[0], data['region'])
+        name = data['name'].replace('-', '--').replace('.', '-')
+
+        volume = driver.create_volume(
+            size = self._get_disk(data['region'], size.name.split('-')[1], size),
+            name = name,
+            location = data['region'],
+            ex_disk_type = disk_type,
+            ex_image_family = self._image_family
+        )
+
+        return {
+            "name": name,
+            "size": size,
+            "image": volume.extra['sourceImage'],
+            "location": data['region'],
+            "ex_boot_disk": volume,
+            "ex_can_ip_forward": True,
+        }
+
+    # Misc Internal Overrides
+    def _find_server(self, driver, id):
+        return driver.ex_get_node(id)

@@ -1,5 +1,6 @@
 import typing
 
+from libcloud.compute.types import NodeState
 
 class Model(object):
     """
@@ -113,3 +114,29 @@ class ServerRegion(Model):
             'name': self.name,
             'plans': [plan.to_nanobox() for plan in self.plans],
         }
+
+
+class ServerInfo(Model):
+    """
+    Data model representing an actual server.
+    """
+    id = None  # type: str
+    status = None  # type: NodeState
+    name = None  # type: str
+    external_ip = None  # type: str
+    internal_ip = None  # type: str
+    password = None  # type: str
+
+    def to_nanobox(self) -> dict:
+        result = {
+            'id': self.id,
+            'status': 'active' if self.status == NodeState.RUNNING else self.status,
+            'name': self.name,
+            'external_ip': self.external_ip,
+            'internal_ip': self.internal_ip,
+        }
+
+        if self.password:
+            result['password'] = self.password
+
+        return result

@@ -2,7 +2,7 @@ import typing
 from decimal import Decimal
 
 import libcloud
-from libcloud.compute.base import NodeDriver, NodeLocation, NodeSize
+from libcloud.compute.base import NodeDriver, NodeLocation, NodeSize, Node
 from libcloud.compute.types import Provider
 
 from nanobox_libcloud.utils import models
@@ -66,11 +66,11 @@ class Adapter(object, metaclass=AdapterBase):
     auth_instructions = ""  # type: str
 
     generic_credentials = {}  # type: dict
-    _generic_driver = None  # type: typing.Type[NodeDriver]
-    _user_driver = None  # type: typing.Type[NodeDriver]
+    _generic_driver = None  # type: NodeDriver
+    _user_driver = None  # type: NodeDriver
 
     # Controller entry points
-    def do_meta(self) -> models.AdapterMeta:
+    def do_meta(self) -> dict:
         """Returns the metadata of this adapter."""
 
         return models.AdapterMeta(
@@ -92,7 +92,7 @@ class Adapter(object, metaclass=AdapterBase):
             auth_instructions=self.auth_instructions,
         ).to_nanobox()
 
-    def do_catalog(self) -> typing.List[models.ServerRegion]:
+    def do_catalog(self) -> typing.List[dict]:
         """Returns the catalog for this adapter."""
 
         # Build catalog
@@ -102,8 +102,8 @@ class Adapter(object, metaclass=AdapterBase):
             # Use generic driver because there are no auth tokens
             for location in self._get_locations():
                 catalog.append(models.ServerRegion(
-                    id = location.id,
-                    name = location.name,
+                    id = self._get_location_id(location),
+                    name = self._get_location_name(location),
                     plans = [
                         models.ServerPlan(
                             id = plan_id,
@@ -123,31 +123,72 @@ class Adapter(object, metaclass=AdapterBase):
                     ]
                 ).to_nanobox())
         except libcloud.common.types.ProviderError:
-            # Get cached data...
+            # TODO: Get cached data...
             pass
-
-        return catalog
+        else:
+            return catalog
 
     def do_verify(self, headers) -> bool:
         """Verify the account credentials."""
 
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-            return True
         except libcloud.common.types.ProviderError:
             return False
+        else:
+            return True
 
-    def do_server_create(self, headers, data) -> models.AdapterServer:
+    def do_server_create(self, headers, data) -> dict:
         """Create a server with a certain provider."""
-        pass
 
-    def do_server_query(self, headers, data) -> models.AdapterServer:
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err, "status": 500}
+        else:
+            result = driver.create_node(**self._get_create_args(data))
+
+            return {"data": {"id": result.id}, "status": 201}
+
+    def do_server_query(self, headers, id) -> dict:
         """Query a server with a certain provider."""
-        pass
 
-    def do_server_cancel(self, headers, data) -> bool:
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err, "status": 500}
+        else:
+            server = self._find_server(driver, id)
+
+            if not server:
+                return {"error": self.server_nick_name + " not found", "status": 404}
+
+            return {"data": models.ServerInfo(
+                id = server.id,
+                status = server.status,
+                name = server.name,
+                external_ip = self._get_ext_ip(server),
+                internal_ip = self._get_int_ip(server),
+                password = self._get_password(server)
+            ).to_nanobox(), "status": 201}
+
+    def do_server_cancel(self, headers, id) -> bool:
         """Cancel a server with a certain provider."""
-        pass
+
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err, "status": 500}
+        else:
+            # TODO: Actually cancel the server
+            server = self._find_server(driver, id)
+
+            if not server:
+                return {"error": self.server_nick_name + " not found", "status": 404}
+
+            result = server.destroy()
+
+            return True
 
     # Provider retrieval
     def _get_driver_class(self) -> typing.Type[NodeDriver]:
@@ -227,6 +268,16 @@ class Adapter(object, metaclass=AdapterBase):
 
         return self._get_generic_driver().list_sizes(location)
 
+    def _get_location_id(self, location) -> str:
+        """Translates a location ID for a given adapter to a ServerSpec value."""
+
+        return location.id
+
+    def _get_location_name(self, location) -> str:
+        """Translates a location name for a given adapter to a ServerSpec value."""
+
+        return location.name
+
     def _get_size_id(self, location, plan, size) -> str:
         """Translates a server size ID for a given adapter to a ServerSpec value."""
 
@@ -266,7 +317,38 @@ class Adapter(object, metaclass=AdapterBase):
 
         return float(Decimal(self._get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
+    # Internal (overridable) methods for /server endpoints
+    @classmethod
+    def _get_create_args(cls, data) -> str:
+        """Returns the args used to create a server for this adapter."""
+
+        raise NotImplementedError()
+
+    @classmethod
+    def _get_ext_ip(cls, server) -> str:
+        """Returns the external IP of a server for this adapter."""
+
+        return server.public_ips[0]
+
+    @classmethod
+    def _get_int_ip(cls, server) -> str:
+        """Returns the internal IP of a server for this adapter."""
+
+        return server.private_ips[0]
+
+    @classmethod
+    def _get_password(cls, server) -> str:
+        """Returns the password of a server for this adapter."""
+
+        return None
+
     # Misc internal methods
+    @classmethod
+    def _find_server(cls, driver, id) -> Node:
+        for server in driver.list_nodes():
+            if server.id == id:
+                return server
+
     @classmethod
     def _config_error(cls, msg, **kwargs):
         raise ValueError(msg.format(cls=cls.__name__, **kwargs))
@@ -278,10 +360,23 @@ class RebootMixin(object):
     """
 
     @classmethod
-    def do_server_reboot(cls, headers, data) -> bool:
+    def do_server_reboot(cls, headers, id) -> bool:
         """Reboot a server with a certain provider."""
-        raise NotImplementedError()
 
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err, "status": 500}
+        else:
+            server = self._find_server(driver, id)
+
+            if not server:
+                return {"error": self.server_nick_name + " not found", "status": 404}
+
+            if not server.reboot():
+                return {"error": "Reboot failed.", "status": 500}
+
+            return True
 
 class RenameMixin(object):
     """
@@ -289,6 +384,19 @@ class RenameMixin(object):
     """
 
     @classmethod
-    def do_server_rename(cls, headers, data) -> bool:
+    def do_server_rename(cls, headers, id, data) -> bool:
         """Rename a server with a certain provider."""
-        raise NotImplementedError()
+
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err, "status": 500}
+        else:
+            server = self._find_server(driver, id)
+
+            if not server:
+                return {"error": self.server_nick_name + " not found", "status": 404}
+
+            # TODO: Actually rename the server.
+
+            return True

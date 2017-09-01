@@ -18,13 +18,13 @@ def server_create(adapter_id):
 
     result = adapter.do_server_create(request.headers, request.json)
 
-    if result.error:
-        return output.failure(result.error, result.status)
+    if 'error' in result:
+        return output.failure(result['error'], result['status'])
 
-    return output.success(result.data, result.status)
+    return output.success(result['data'], result['status'])
 
 @app.route('/<adapter_id>/servers/<server_id>', methods=['GET'])
-def server_query(adapter_id):
+def server_query(adapter_id, server_id):
     """Queries data about a server using a certain adapter."""
     adapter = get_adapter(adapter_id)
 
@@ -34,15 +34,15 @@ def server_query(adapter_id):
     if not adapter.do_verify(request.headers):
         return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
 
-    result = adapter.do_server_query(request.headers, request.json)
+    result = adapter.do_server_query(request.headers, server_id)
 
-    if result.error:
-        return output.failure(result.error, result.status)
+    if 'error' in result:
+        return output.failure(result['error'], result['status'])
 
-    return output.success(result.data, result.status)
+    return output.success(result['data'], result['status'])
 
 @app.route('/<adapter_id>/servers/<server_id>', methods=['DELETE'])
-def server_cancel(adapter_id):
+def server_cancel(adapter_id, server_id):
     """Cancels a server using a certain adapter."""
     adapter = get_adapter(adapter_id)
 
@@ -52,15 +52,15 @@ def server_cancel(adapter_id):
     if not adapter.do_verify(request.headers):
         return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
 
-    result = adapter.do_server_cancel(request.headers, request.json)
+    result = adapter.do_server_cancel(request.headers, server_id)
 
-    if result.error:
-        return output.failure(result.error, result.status)
+    if 'error' in result:
+        return output.failure(result['error'], result['status'])
 
-    return output.success(result.data, result.status)
+    return ""
 
 @app.route('/<adapter_id>/servers/<server_id>/reboot', methods=['PATCH'])
-def server_reboot(adapter_id):
+def server_reboot(adapter_id, server_id):
     """Reboots a server using a certain adapter, if that adapter supports rebooting."""
     adapter = get_adapter(adapter_id)
 
@@ -73,15 +73,15 @@ def server_reboot(adapter_id):
     if not adapter.do_verify(request.headers):
         return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
 
-    result = adapter.do_server_reboot(request.headers, request.json)
+    result = adapter.do_server_reboot(request.headers, server_id)
 
-    if result.error:
-        return output.failure(result.error, result.status)
+    if 'error' in result:
+        return output.failure(result['error'], result['status'])
 
-    return output.success(result.data, result.status)
+    return ""
 
 @app.route('/<adapter_id>/servers/<server_id>/rename', methods=['PATCH'])
-def server_rename(adapter_id):
+def server_rename(adapter_id, server_id):
     """Renames a server using a certain adapter, if that adapter supports renaming."""
     adapter = get_adapter(adapter_id)
 
@@ -94,9 +94,9 @@ def server_rename(adapter_id):
     if not adapter.do_verify(request.headers):
         return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
 
-    result = adapter.do_server_rename(request.headers, request.json)
+    result = adapter.do_server_rename(request.headers, server_id, request.json)
 
-    if result.error:
-        return output.failure(result.error, result.status)
+    if 'error' in result:
+        return output.failure(result['error'], result['status'])
 
-    return output.success(result.data, result.status)
+    return ""
