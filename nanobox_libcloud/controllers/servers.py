@@ -54,7 +54,7 @@ def server_cancel(adapter_id, server_id):
 
     result = adapter.do_server_cancel(request.headers, server_id)
 
-    if 'error' in result:
+    if isinstance(result, dict) and 'error' in result:
         return output.failure(result['error'], result['status'])
 
     return ""
@@ -75,7 +75,7 @@ def server_reboot(adapter_id, server_id):
 
     result = adapter.do_server_reboot(request.headers, server_id)
 
-    if 'error' in result:
+    if isinstance(result, dict) and 'error' in result:
         return output.failure(result['error'], result['status'])
 
     return ""
@@ -96,7 +96,7 @@ def server_rename(adapter_id, server_id):
 
     result = adapter.do_server_rename(request.headers, server_id, request.json)
 
-    if 'error' in result:
+    if isinstance(result, dict) and 'error' in result:
         return output.failure(result['error'], result['status'])
 
     return ""

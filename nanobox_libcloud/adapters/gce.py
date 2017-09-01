@@ -2,6 +2,7 @@ import os
 from urllib import parse
 from decimal import Decimal
 
+import libcloud
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import RebootMixin
 
@@ -17,6 +18,7 @@ class Gce(RebootMixin, Adapter):
     server_nick_name = "instance"
 
     # Provider-wide server properties
+    server_ssh_user = 'ubuntu'
     server_ssh_key_method = 'object'
 
     # Provider auth properties
@@ -180,8 +182,17 @@ class Gce(RebootMixin, Adapter):
             "location": data['region'],
             "ex_boot_disk": volume,
             "ex_can_ip_forward": True,
+            "ex_metadata": {'ssh-keys': '%s:%s %s' % (self.server_ssh_user, data['ssh_key'], self.server_ssh_user)}
         }
+
+    def _get_node_id(self, node):
+        """Returns the node ID of a server for this adapter."""
+
+        return node.name
 
     # Misc Internal Overrides
     def _find_server(self, driver, id):
-        return driver.ex_get_node(id)
+        try:
+            return driver.ex_get_node(id)
+        except libcloud.common.types.ProviderError:
+            return None

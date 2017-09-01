@@ -148,7 +148,7 @@ class Adapter(object, metaclass=AdapterBase):
         else:
             result = driver.create_node(**self._get_create_args(data))
 
-            return {"data": {"id": result.id}, "status": 201}
+            return {"data": {"id": self._get_node_id(result)}, "status": 201}
 
     def do_server_query(self, headers, id) -> dict:
         """Query a server with a certain provider."""
@@ -164,8 +164,8 @@ class Adapter(object, metaclass=AdapterBase):
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             return {"data": models.ServerInfo(
-                id = server.id,
-                status = server.status,
+                id = self._get_node_id(server),
+                status = server.state,
                 name = server.name,
                 external_ip = self._get_ext_ip(server),
                 internal_ip = self._get_int_ip(server),
@@ -324,27 +324,28 @@ class Adapter(object, metaclass=AdapterBase):
 
         raise NotImplementedError()
 
-    @classmethod
-    def _get_ext_ip(cls, server) -> str:
+    def _get_node_id(self, node) -> str:
+        """Returns the node ID of a server for this adapter."""
+
+        return node.id
+
+    def _get_ext_ip(self, server) -> str:
         """Returns the external IP of a server for this adapter."""
 
         return server.public_ips[0]
 
-    @classmethod
-    def _get_int_ip(cls, server) -> str:
+    def _get_int_ip(self, server) -> str:
         """Returns the internal IP of a server for this adapter."""
 
         return server.private_ips[0]
 
-    @classmethod
-    def _get_password(cls, server) -> str:
+    def _get_password(self, server) -> str:
         """Returns the password of a server for this adapter."""
 
         return None
 
     # Misc internal methods
-    @classmethod
-    def _find_server(cls, driver, id) -> Node:
+    def _find_server(self, driver, id) -> Node:
         for server in driver.list_nodes():
             if server.id == id:
                 return server
@@ -359,8 +360,7 @@ class RebootMixin(object):
     Mixin for adapters to signify that servers can be rebooted.
     """
 
-    @classmethod
-    def do_server_reboot(cls, headers, id) -> bool:
+    def do_server_reboot(self, headers, id) -> bool:
         """Reboot a server with a certain provider."""
 
         try:
@@ -383,8 +383,7 @@ class RenameMixin(object):
     Mixin for adapters to signify that servers can be renamed.
     """
 
-    @classmethod
-    def do_server_rename(cls, headers, id, data) -> bool:
+    def do_server_rename(self, headers, id, data) -> bool:
         """Rename a server with a certain provider."""
 
         try:
