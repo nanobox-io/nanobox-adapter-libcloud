@@ -55,8 +55,8 @@ class AdapterMeta(Model):
             'ssh_auth_method': self.ssh_auth_method,
             'ssh_key_method': self.ssh_key_method,
             'bootstrap_script': self.bootstrap_script,
-            'auth_credential_fields': [{'key': field[0], 'label': field[1]} for field in self.auth_credential_fields],
-            'auth_instructions': self.auth_instructions,
+            'credential_fields': [{'key': field[0], 'label': field[1]} for field in self.auth_credential_fields],
+            'instructions': self.auth_instructions,
         }
 
 

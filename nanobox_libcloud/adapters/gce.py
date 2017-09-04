@@ -18,6 +18,8 @@ class Gce(RebootMixin, Adapter):
     server_nick_name = "instance"
 
     # Provider-wide server properties
+    server_internal_iface = 'ens4'
+    server_external_iface = None
     server_ssh_user = 'ubuntu'
     server_ssh_key_method = 'object'
 
@@ -58,9 +60,9 @@ class Gce(RebootMixin, Adapter):
         """Extracts credentials from request headers."""
 
         return {
-            "user_id": headers.get("Service-Email"),
-            "key": parse.unquote(headers.get("Service-Key")),
-            "project": headers.get("Project-Id")
+            "user_id": headers.get("Auth-Service-Email"),
+            "key": parse.unquote(headers.get("Auth-Service-Key")),
+            "project": headers.get("Auth-Project-Id")
         }
 
     def _get_user_driver(self, **auth_credentials):
@@ -167,6 +169,8 @@ class Gce(RebootMixin, Adapter):
         size = driver.ex_get_size(data['size'].split('-ssd')[0], data['region'])
         name = data['name'].replace('-', '--').replace('.', '-')
 
+        network = self._get_network(driver)
+
         volume = driver.create_volume(
             size = self._get_disk(data['region'], size.name.split('-')[1], size),
             name = name,
@@ -181,6 +185,7 @@ class Gce(RebootMixin, Adapter):
             "image": volume.extra['sourceImage'],
             "location": data['region'],
             "ex_boot_disk": volume,
+            "ex_network": network,
             "ex_can_ip_forward": True,
             "ex_metadata": {'ssh-keys': '%s:%s %s' % (self.server_ssh_user, data['ssh_key'], self.server_ssh_user)}
         }
@@ -196,3 +201,25 @@ class Gce(RebootMixin, Adapter):
             return driver.ex_get_node(id)
         except libcloud.common.types.ProviderError:
             return None
+
+    # Misc Internal Helpers (Adapter-Specific)
+    def _get_network(self, driver):
+        try:
+            return driver.ex_get_network('nanobox')
+        except libcloud.common.types.ProviderError:
+            network = driver.ex_create_network(
+                name = 'nanobox',
+                cidr = None,
+                mode = 'auto',
+                description = 'VPC for Nanobox servers'
+            )
+
+            firewall = driver.ex_create_firewall(
+                name = 'nanobox',
+                allowed = [
+                    {"IPProtocol": "all"},
+                ],
+                network = network
+            )
+
+            return network

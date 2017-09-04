@@ -37,6 +37,7 @@
           "url": "https://docs.nanobox.io/providers/create/#meta"
         },
         "operationId": "meta",
+        "security": [{}],
         "responses": {
           "200": {
             "description": "successful operation",
@@ -189,6 +190,7 @@
           "url": "https://docs.nanobox.io/providers/create/#catalog"
         },
         "operationId": "catalog",
+        "security": [{}],
         "responses": {
           "200": {
             "description": "The response data should be a list (array) of regions. Each region should contain a list of plans. It is not necessary to have multiple regions, however the structure will be the same regardless. Additionally, your integration may only have one classification of server types, or you may have high-cpu, high-ram, or high-IO options. A plan is a grouping of server sizes within a classification.",
@@ -329,15 +331,6 @@
           "url": "https://docs.nanobox.io/providers/create/#verify"
         },
         "operationId": "verify",
-        "parameters": [{
-          "$ref": "#/parameters/Service-Email"
-        },
-        {
-          "$ref": "#/parameters/Service-Key"
-        },
-        {
-          "$ref": "#/parameters/Project-Id"
-        }],
         "responses": {
           "200": {
             "description": "successful operation"
@@ -360,15 +353,7 @@
           "url": "https://docs.nanobox.io/providers/create/#order-server"
         },
         "operationId": "order-server",
-        "parameters": [{
-            "$ref": "#/parameters/Service-Email"
-          },
-          {
-            "$ref": "#/parameters/Service-Key"
-          },
-          {
-            "$ref": "#/parameters/Project-Id"
-          },
+        "parameters": [
           {
             "name": "payload",
             "in": "body",
@@ -441,15 +426,7 @@
           "url": "https://docs.nanobox.io/providers/create/#query-server"
         },
         "operationId": "query-server",
-        "parameters": [{
-            "$ref": "#/parameters/Service-Email"
-          },
-          {
-            "$ref": "#/parameters/Service-Key"
-          },
-          {
-            "$ref": "#/parameters/Project-Id"
-          },
+        "parameters": [
           {
             "name": "id",
             "in": "path",
@@ -524,15 +501,7 @@
           "url": "https://docs.nanobox.io/providers/create/#cancel-server"
         },
         "operationId": "cancel-server",
-        "parameters": [{
-            "$ref": "#/parameters/Service-Email"
-          },
-          {
-            "$ref": "#/parameters/Service-Key"
-          },
-          {
-            "$ref": "#/parameters/Project-Id"
-          },
+        "parameters": [
           {
             "name": "id",
             "in": "path",
@@ -563,15 +532,7 @@
           "url": "https://docs.nanobox.io/providers/create/#reboot-server"
         },
         "operationId": "reboot-server",
-        "parameters": [{
-            "$ref": "#/parameters/Service-Email"
-          },
-          {
-            "$ref": "#/parameters/Service-Key"
-          },
-          {
-            "$ref": "#/parameters/Project-Id"
-          },
+        "parameters": [
           {
             "name": "id",
             "in": "path",
@@ -592,26 +553,28 @@
     }
   },
   "definitions": {},
-  "parameters": {
+  "securityDefinitions": {
     "Service-Email": {
-      "name": "Service-Email",
+      "name": "Auth-Service-Email",
       "in": "header",
-      "required": true,
-      "type": "string"
+      "type": "apiKey"
     },
     "Service-Key": {
-      "name": "Service-Key",
+      "name": "Auth-Service-Key",
       "in": "header",
-      "required": true,
-      "type": "string"
+      "type": "apiKey"
     },
     "Project-Id": {
-      "name": "Project-Id",
+      "name": "Auth-Project-Id",
       "in": "header",
-      "required": true,
-      "type": "string"
+      "type": "apiKey"
     }
   },
+  "security": [{
+    "Service-Email": [],
+    "Service-Key": [],
+    "Project-Id": []
+  }],
   "responses": {
     "default": {
       "description": "Error",
@@ -633,12 +596,11 @@
     }
   },
   "tags": [{
-      "name": "meta",
-      "description": "Endpoints related to the provider"
-    },
-    {
-      "name": "servers",
-      "description": "Endpoints related to server management"
-    }
-  ]
+    "name": "meta",
+    "description": "Endpoints related to the provider"
+  },
+  {
+    "name": "servers",
+    "description": "Endpoints related to server management"
+  }]
 }
