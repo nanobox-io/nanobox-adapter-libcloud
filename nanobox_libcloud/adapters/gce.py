@@ -29,7 +29,14 @@ class Gce(RebootMixin, Adapter):
         ["Service-Key", "Service Key"],
         ["Project-Id", "Project ID"]
     ]
-    auth_instructions = ""
+    auth_instructions = ('You can retrieve all three of these values by visiting '
+        '<a href="https://console.cloud.google.com/apis/credentials">the API '
+        'credentials page for your GCE project</a>, selecting Create Credentials '
+        ' → Service Account Key, selecting or creating a service account, '
+        'choosing JSON for the Key Type, and clicking Create. Open the JSON file '
+        'it downloads, and copy the <code>client_email</code> to the Service '
+        'Email field, the <code>private_key</code> to the Service Key field, and '
+        'the <code>project_id</code> to the Project ID field here.')
 
     # Adapter-sepcific properties
     _plans = [
@@ -61,7 +68,7 @@ class Gce(RebootMixin, Adapter):
 
         return {
             "user_id": headers.get("Auth-Service-Email"),
-            "key": parse.unquote(headers.get("Auth-Service-Key")),
+            "key": parse.unquote(headers.get("Auth-Service-Key")).replace('\\n', '\n'),
             "project": headers.get("Auth-Project-Id")
         }
 
