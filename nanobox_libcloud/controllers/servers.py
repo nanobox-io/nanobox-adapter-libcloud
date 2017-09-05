@@ -23,6 +23,7 @@ def server_create(adapter_id):
 
     return output.success(result['data'], result['status'])
 
+
 @app.route('/<adapter_id>/servers/<server_id>', methods=['GET'])
 def server_query(adapter_id, server_id):
     """Queries data about a server using a certain adapter."""
@@ -41,6 +42,7 @@ def server_query(adapter_id, server_id):
 
     return output.success(result['data'], result['status'])
 
+
 @app.route('/<adapter_id>/servers/<server_id>', methods=['DELETE'])
 def server_cancel(adapter_id, server_id):
     """Cancels a server using a certain adapter."""
@@ -58,6 +60,7 @@ def server_cancel(adapter_id, server_id):
         return output.failure(result['error'], result['status'])
 
     return ""
+
 
 @app.route('/<adapter_id>/servers/<server_id>/reboot', methods=['PATCH'])
 def server_reboot(adapter_id, server_id):
@@ -79,6 +82,7 @@ def server_reboot(adapter_id, server_id):
         return output.failure(result['error'], result['status'])
 
     return ""
+
 
 @app.route('/<adapter_id>/servers/<server_id>/rename', methods=['PATCH'])
 def server_rename(adapter_id, server_id):

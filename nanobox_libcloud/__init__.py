@@ -6,4 +6,5 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# Load controllers
 import nanobox_libcloud.controllers

@@ -1,15 +1,17 @@
 import importlib
 import os
+import typing
 
 from nanobox_libcloud.adapters.base import Adapter, AdapterBase
 
 
-def get_adapter(adapter_id: str) -> Adapter:
+def get_adapter(adapter_id: str) -> typing.Optional[Adapter]:
     """Returns the adapter with the given id or `None` if there is none."""
     adapter = AdapterBase.registry.get(adapter_id)
     if adapter:
         return adapter()
     return None
+
 
 def import_adapters():
     """Finds and imports modules containing adapter implementations."""

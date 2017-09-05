@@ -13,6 +13,7 @@ def overview():
 
     return render_template("overview.html", adapters=adapters)
 
+
 @app.route('/<adapter_id>', methods=['GET'])
 def usage(adapter_id):
     """Provides usage info for a certain adapter, and how to use it, in a more specific sense."""
@@ -22,6 +23,7 @@ def usage(adapter_id):
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
     return render_template("usage.html", adapter=adapter)
+
 
 # Actual metadata endpoints for the Nanobox Provider Adapter API
 @app.route('/<adapter_id>/meta', methods=['GET'])
@@ -34,6 +36,7 @@ def meta(adapter_id):
 
     return output.success(adapter.do_meta())
 
+
 @app.route('/<adapter_id>/catalog', methods=['GET'])
 def catalog(adapter_id):
     """Provides the catalog data for a certain adapter."""
@@ -43,6 +46,7 @@ def catalog(adapter_id):
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
     return output.success(adapter.do_catalog())
+
 
 @app.route('/<adapter_id>/verify', methods=['POST'])
 def verify(adapter_id):

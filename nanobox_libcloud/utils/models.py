@@ -2,6 +2,7 @@ import typing
 
 from libcloud.compute.types import NodeState
 
+
 class Model(object):
     """
     Base class for the intermediate data models.
@@ -39,7 +40,7 @@ class AdapterMeta(Model):
     auth_credential_fields = None  # type: typing.Tuple[str, str]
     auth_instructions = None  # type: str
 
-    def to_nanobox(self) -> dict:
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         return {
             'id': self.id,
             'name': self.name,
@@ -72,7 +73,7 @@ class ServerSpec(Model):
     dollars_per_hr = None  # type: float
     dollars_per_mo = None  # type: float
 
-    def to_nanobox(self) -> dict:
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         return {
             'id': self.id,
             'ram': self.ram,
@@ -92,7 +93,7 @@ class ServerPlan(Model):
     name = None  # type: str
     specs = []  # type: typing.List[ServerSpec]
 
-    def to_nanobox(self) -> dict:
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         return {
             'id': self.id,
             'name': self.name,
@@ -108,7 +109,7 @@ class ServerRegion(Model):
     name = None  # type: str
     plans = []  # type: typing.List[ServerPlan]
 
-    def to_nanobox(self) -> dict:
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         return {
             'id': self.id,
             'name': self.name,
@@ -127,7 +128,7 @@ class ServerInfo(Model):
     internal_ip = None  # type: str
     password = None  # type: str
 
-    def to_nanobox(self) -> dict:
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         result = {
             'id': self.id,
             'status': 'active' if self.status == NodeState.RUNNING else self.status,

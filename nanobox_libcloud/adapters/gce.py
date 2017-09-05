@@ -128,7 +128,7 @@ class Gce(RebootMixin, Adapter):
         return size.name + ('-ssd' if plan.endswith('-ssd') else '')
 
     def _get_cpu(self, location, plan, size):
-        """Translates a RAM size value for a given adapter to a ServerSpec value."""
+        """Translates a CPU count value for a given adapter to a ServerSpec value."""
 
         if size.extra['guestCpus']:
             return float(size.extra['guestCpus'])
@@ -142,10 +142,10 @@ class Gce(RebootMixin, Adapter):
 
         for test, value in [
             # if <, disk is #
-            [    1,      20],
-            [    2,      30],
-            [    4,      40],
-            [    8,      60],
+            [1, 20],
+            [2, 30],
+            [4, 40],
+            [8, 60],
         ]:
             if gb_ram < test:
                 return value
@@ -158,7 +158,8 @@ class Gce(RebootMixin, Adapter):
         base_price = super()._get_hourly_price(location, plan, size) or 0
         disk_size = self._get_disk(location, plan, size)
 
-        return (base_price + float(disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
+        return (base_price + float(
+            disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
 
     # Internal overrides for /server endpoints
     def _get_create_args(self, data):
@@ -172,11 +173,11 @@ class Gce(RebootMixin, Adapter):
         network = self._get_network(driver)
 
         volume = driver.create_volume(
-            size = self._get_disk(data['region'], size.name.split('-')[1], size),
-            name = name,
-            location = data['region'],
-            ex_disk_type = disk_type,
-            ex_image_family = self._image_family
+            size=self._get_disk(data['region'], size.name.split('-')[1], size),
+            name=name,
+            location=data['region'],
+            ex_disk_type=disk_type,
+            ex_image_family=self._image_family
         )
 
         return {
@@ -192,7 +193,6 @@ class Gce(RebootMixin, Adapter):
 
     def _get_node_id(self, node):
         """Returns the node ID of a server for this adapter."""
-
         return node.name
 
     # Misc Internal Overrides
@@ -208,18 +208,18 @@ class Gce(RebootMixin, Adapter):
             return driver.ex_get_network('nanobox')
         except libcloud.common.types.ProviderError:
             network = driver.ex_create_network(
-                name = 'nanobox',
-                cidr = None,
-                mode = 'auto',
-                description = 'VPC for Nanobox servers'
+                name='nanobox',
+                cidr=None,
+                mode='auto',
+                description='VPC for Nanobox servers'
             )
 
             firewall = driver.ex_create_firewall(
-                name = 'nanobox',
-                allowed = [
+                name='nanobox',
+                allowed=[
                     {"IPProtocol": "all"},
                 ],
-                network = network
+                network=network
             )
 
             return network

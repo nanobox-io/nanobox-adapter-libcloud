@@ -1,6 +1,7 @@
 import importlib
 import os
 
+
 def import_controllers():
     """Finds and imports modules containing controller implementations."""
     for file in os.listdir(os.path.dirname(__file__)):
