@@ -1,0 +1,134 @@
+import os
+from urllib import parse
+from decimal import Decimal
+
+import libcloud
+from nanobox_libcloud.adapters import Adapter
+from nanobox_libcloud.adapters.base import RebootMixin
+
+
+class Vultr(RebootMixin, Adapter):
+    """
+    Adapter for the Vultr service
+    """
+
+    # Adapter metadata
+    id = "vultr"
+    name = "Vultr"
+
+    # Provider-wide server properties
+    # server_internal_iface = 'ens4'
+    # server_external_iface = None
+    # server_ssh_user = 'ubuntu'
+
+    # Provider auth properties
+    auth_credential_fields = [
+        ["Api-Key", "API Key"],
+    ]
+    auth_instructions = "Enter your Personal Access Token from https://my.vultr.com/settings/#settingsapi, and ensure you allow Any IPv4 in Access Control."
+
+    # Adapter-sepcific properties
+    _plans = [
+        ('SATA', 'Standard SATA'),
+        ('SSD', 'With SSD')
+    ]
+    _sizes = {}
+
+    def __init__(self, **kwargs):
+        self.generic_credentials = {
+            'key': os.getenv('VULTR_API_KEY')
+        }
+
+    # Internal overrides for provider retrieval
+    def _get_request_credentials(self, headers):
+        """Extracts credentials from request headers."""
+
+        return {
+            "key": headers.get("Auth-Api-Key")
+        }
+
+    def _get_user_driver(self, **auth_credentials):
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+
+        driver = super()._get_user_driver(**auth_credentials)
+
+        driver.list_key_pairs()
+
+        return driver
+
+    # Internal overrides for /meta
+    def get_default_region(self):
+        """Gets the default region ID."""
+
+        return '4'
+
+    def get_default_size(self):
+        """Gets the default size ID."""
+
+        return '87'
+
+    def get_default_plan(self):
+        """Gets the default plan ID."""
+
+        return 'SATA'
+
+    # Internal overrides for /catalog
+    def _get_plans(self, location):
+        """Retrieves a list of plans for a given adapter."""
+
+        # self._plans = []
+        self._sizes = {}
+
+        for size in self._get_generic_driver().list_sizes():
+            plan = size.extra['plan_type']
+
+            if plan in ['DEDICATED']:
+                next
+
+            if location.id not in size.extra['available_locations']:
+                next
+
+            if plan not in self._sizes:
+                self._sizes[plan] = []
+
+            self._sizes[plan].append(size)
+
+        return self._plans
+
+    def _get_sizes(self, location, plan):
+        """Retrieves a list of sizes for a given adapter."""
+
+        return self._sizes[plan]
+
+    def _get_cpu(self, location, plan, size):
+        """Translates a CPU count value for a given adapter to a ServerSpec value."""
+
+        if size.extra['vcpu_count']:
+            return float(size.extra['vcpu_count'])
+
+        return size.extra['vcpu_count']
+
+    def _get_hourly_price(self, location, plan, size):
+        """Translates an hourly cost value for a given adapter to a ServerSpec value."""
+
+        base_price = super()._get_hourly_price(location, plan, size) or 0
+        return float(base_price / (30 * 24)) or None
+
+    # Internal overrides for /key endpoints
+
+    # Internal overrides for /server endpoints
+    def _get_create_args(self, data):
+        """Returns the args used to create a server for this adapter."""
+
+        driver = self._get_user_driver()
+
+        return {
+            "name": name,
+            "size": size,
+            "image": volume.extra['sourceImage'],
+            "location": data['region'],
+            "ex_boot_disk": volume,
+            "ex_network": network,
+            "ex_can_ip_forward": True,
+            "ex_metadata": {'ssh-keys': '%s:%s %s' % (self.server_ssh_user, data['ssh_key'], self.server_ssh_user)}
+        }
