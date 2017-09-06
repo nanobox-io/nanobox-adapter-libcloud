@@ -138,22 +138,20 @@ class Adapter(object, metaclass=AdapterBase):
         """Create a server with a certain provider."""
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.ProviderError as err:
-            return {"error": err, "status": 500}
-        else:
             result = driver.create_node(**self._get_create_args(data))
-
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
             return {"data": {"id": self._get_node_id(result)}, "status": 201}
 
     def do_server_query(self, headers, id) -> typing.Dict[str, typing.Any]:
         """Query a server with a certain provider."""
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.ProviderError as err:
-            return {"error": err, "status": 500}
-        else:
             server = self._find_server(driver, id)
-
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
@@ -170,16 +168,15 @@ class Adapter(object, metaclass=AdapterBase):
         """Cancel a server with a certain provider."""
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.ProviderError as err:
-            return {"error": err, "status": 500}
-        else:
             server = self._find_server(driver, id)
 
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             result = server.destroy()
-
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
             return True
 
     # Provider retrieval
@@ -336,9 +333,6 @@ class RebootMixin(object):
         """Reboot a server with a certain provider."""
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.ProviderError as err:
-            return {"error": err, "status": 500}
-        else:
             server = self._find_server(driver, id)
 
             if not server:
@@ -346,7 +340,9 @@ class RebootMixin(object):
 
             if not server.reboot():
                 return {"error": "Reboot failed.", "status": 500}
-
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
             return True
 
 
@@ -359,14 +355,13 @@ class RenameMixin(object):
         """Rename a server with a certain provider."""
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.ProviderError as err:
-            return {"error": err, "status": 500}
-        else:
             server = self._find_server(driver, id)
 
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             # TODO: Actually rename the server.
-
+        except libcloud.common.types.ProviderError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
             return True
