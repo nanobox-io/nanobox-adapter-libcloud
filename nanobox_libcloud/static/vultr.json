@@ -691,55 +691,6 @@
           }
         }
       }
-    },
-    "/servers/{id}/rename": {
-      "patch": {
-        "tags": [
-          "servers"
-        ],
-        "summary": "Rename Server",
-        "description": "The `/servers/{id}/rename` route is used to rename a server that was previously ordered via Nanobox. This route SHOULD NOT hold open the request until the server is completely renamed. It should return immediately once the order to rename has been submitted.",
-        "externalDocs": {
-          "description": "Official documentation here",
-          "url": "https://docs.nanobox.io/providers/create/#rename-server"
-        },
-        "operationId": "rename-server",
-        "parameters": [
-          {
-            "name": "payload",
-            "in": "body",
-            "description": "New server name",
-            "required": true,
-            "schema": {
-              "required": [
-                "name"
-              ],
-              "properties": {
-                "name": {
-                  "description": "the new name of the server",
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "successful operation"
-          },
-          "default": {
-            "$ref": "#/responses/default"
-          }
-        }
-      }
     }
   },
   "definitions": {},

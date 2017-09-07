@@ -13,24 +13,25 @@ class Vultr(RebootMixin, Adapter):
     """
 
     # Adapter metadata
-    id = "vultr"
+    id = "vtr"
     name = "Vultr"
 
     # Provider-wide server properties
-    # server_internal_iface = 'ens4'
+    server_internal_iface = 'ens3'
     # server_external_iface = None
-    # server_ssh_user = 'ubuntu'
 
     # Provider auth properties
     auth_credential_fields = [
         ["Api-Key", "API Key"],
     ]
-    auth_instructions = "Enter your Personal Access Token from https://my.vultr.com/settings/#settingsapi, and ensure you allow Any IPv4 in Access Control."
+    auth_instructions = ('Enter your Personal Access Token from '
+        '<a href="https://my.vultr.com/settings/#settingsapi">your API Settings '
+        'page</a>, and ensure you allow Any IPv4 in Access Control.')
 
     # Adapter-sepcific properties
     _plans = [
-        ('SATA', 'Standard SATA'),
-        ('SSD', 'With SSD')
+        ('SSD', 'Standard SSD'),
+        ('DEDICATED', 'Dedicated Server')
     ]
     _sizes = {}
 
@@ -56,6 +57,10 @@ class Vultr(RebootMixin, Adapter):
 
         return driver
 
+    @classmethod
+    def _get_id(cls):
+        return 'vultr'
+
     # Internal overrides for /meta
     def get_default_region(self):
         """Gets the default region ID."""
@@ -65,12 +70,12 @@ class Vultr(RebootMixin, Adapter):
     def get_default_size(self):
         """Gets the default size ID."""
 
-        return '87'
+        return '201'
 
     def get_default_plan(self):
         """Gets the default plan ID."""
 
-        return 'SATA'
+        return 'SSD'
 
     # Internal overrides for /catalog
     def _get_plans(self, location):
@@ -82,7 +87,7 @@ class Vultr(RebootMixin, Adapter):
         for size in self._get_generic_driver().list_sizes():
             plan = size.extra['plan_type']
 
-            if plan in ['DEDICATED']:
+            if plan in ['SATA']:
                 next
 
             if location.id not in size.extra['available_locations']:
@@ -115,6 +120,8 @@ class Vultr(RebootMixin, Adapter):
         return float(base_price / (30 * 24)) or None
 
     # Internal overrides for /key endpoints
+    def _delete_key(self, driver, key):
+        return driver.delete_key_pair(key)
 
     # Internal overrides for /server endpoints
     def _get_create_args(self, data):
@@ -122,13 +129,21 @@ class Vultr(RebootMixin, Adapter):
 
         driver = self._get_user_driver()
 
+        location = self._find_location(driver, data['region'])
+        size = self._find_size(driver, data['size'])
+        # Ubuntu 16.04 x64 - Current options at https://api.vultr.com/v1/os/list
+        image = self._find_image(driver, '215')
+        ssh_key = self._find_ssh_key(driver, data['ssh_key'])
+
         return {
-            "name": name,
+            "name": data['name'],
             "size": size,
-            "image": volume.extra['sourceImage'],
-            "location": data['region'],
-            "ex_boot_disk": volume,
-            "ex_network": network,
-            "ex_can_ip_forward": True,
-            "ex_metadata": {'ssh-keys': '%s:%s %s' % (self.server_ssh_user, data['ssh_key'], self.server_ssh_user)}
+            "image": image,
+            "location": location,
+            "ex_ssh_key_ids": [ssh_key.id]
         }
+
+    def _find_ssh_key(self, driver, id):
+        for ssh_key in driver.list_key_pairs():
+            if ssh_key.id == id:
+                return ssh_key

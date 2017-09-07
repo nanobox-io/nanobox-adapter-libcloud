@@ -117,6 +117,22 @@ class ServerRegion(Model):
         }
 
 
+class KeyInfo(Model):
+    """
+    Data model representing an SSH key.
+    """
+    id = None  # type: str
+    name = None  # type: str
+    key = None  # type: str
+
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
+        return {
+            'id': self.id,
+            'name': self.name,
+            'public_key': self.key,
+        }
+
+
 class ServerInfo(Model):
     """
     Data model representing an actual server.

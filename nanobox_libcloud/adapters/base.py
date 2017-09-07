@@ -2,7 +2,7 @@ import typing
 from decimal import Decimal
 
 import libcloud
-from libcloud.compute.base import NodeDriver, NodeLocation, NodeSize, Node
+from libcloud.compute.base import NodeDriver, NodeLocation, NodeImage, NodeSize, Node
 
 from nanobox_libcloud.utils import models
 
@@ -24,7 +24,7 @@ class AdapterBase(type):
 
     @classmethod
     def register(mcs, cls):
-        adapter_id = cls.get_id()
+        adapter_id = cls._get_id()
 
         # Check if there is an existing adapter with the same id
         if adapter_id in mcs.registry:
@@ -119,7 +119,7 @@ class Adapter(object, metaclass=AdapterBase):
                         ) for plan_id, plan_name in self._get_plans(location)
                     ]
                 ).to_nanobox())
-        except libcloud.common.types.ProviderError:
+        except libcloud.common.types.LibcloudError:
             # TODO: Get cached data...
             pass
 
@@ -129,8 +129,69 @@ class Adapter(object, metaclass=AdapterBase):
         """Verify the account credentials."""
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.ProviderError:
+        except libcloud.common.types.LibcloudError:
             return False
+        else:
+            return True
+
+    def do_key_create(self, headers, data) -> typing.Dict[str, typing.Any]:
+        """Create a key with a certain provider."""
+        if self.server_ssh_auth_method != 'key' or self.server_ssh_key_method != 'reference':
+            return {"error": "This provider doesn't support key storage", "status": 501}
+
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+            if not driver.create_key_pair(data['name'], data['key']):
+                return {"error": "Key creation failed", "status": 500}
+
+            for key in driver.list_key_pairs():
+                if key.name == data['name']:
+                    result = key
+                    break
+        except libcloud.common.types.LibcloudError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
+            if not result:
+                return {"error": "Key created, but not found", "status": 500}
+
+            return {"data": {"id": result.id}, "status": 201}
+
+    def do_key_query(self, headers, id) -> typing.Dict[str, typing.Any]:
+        """Query a key with a certain provider."""
+        if self.server_ssh_auth_method != 'key' or self.server_ssh_key_method != 'reference':
+            return {"error": "This provider doesn't support key storage", "status": 501}
+
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+            key = self._find_ssh_key(driver, id)
+        except libcloud.common.types.LibcloudError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
+            if not key:
+                return {"error": "SSH key not found", "status": 404}
+
+            return {"data": models.KeyInfo(
+                id=key.id,
+                name=key.name,
+                key=key.pub_key
+            ).to_nanobox(), "status": 201}
+
+    def do_key_delete(self, headers, id) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
+        """Delete a key with a certain provider."""
+        if self.server_ssh_auth_method != 'key' or self.server_ssh_key_method != 'reference':
+            return {"error": "This provider doesn't support key storage", "status": 501}
+
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+            key = self._find_ssh_key(driver, id)
+
+            if not key:
+                return {"error": "SSH key not found", "status": 404}
+
+            if not self._delete_key(driver, key):
+                return {"error": "Problem deleting key", "status": 500}
+        except libcloud.common.types.LibcloudError as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
 
@@ -139,7 +200,7 @@ class Adapter(object, metaclass=AdapterBase):
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             result = driver.create_node(**self._get_create_args(data))
-        except libcloud.common.types.ProviderError as err:
+        except libcloud.common.types.LibcloudError as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return {"data": {"id": self._get_node_id(result)}, "status": 201}
@@ -149,7 +210,7 @@ class Adapter(object, metaclass=AdapterBase):
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             server = self._find_server(driver, id)
-        except libcloud.common.types.ProviderError as err:
+        except libcloud.common.types.LibcloudError as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             if not server:
@@ -174,7 +235,7 @@ class Adapter(object, metaclass=AdapterBase):
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             result = server.destroy()
-        except libcloud.common.types.ProviderError as err:
+        except libcloud.common.types.LibcloudError as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
@@ -182,7 +243,7 @@ class Adapter(object, metaclass=AdapterBase):
     # Provider retrieval
     def _get_driver_class(self) -> typing.Type[NodeDriver]:
         """Returns the libcloud driver class for the id of this adapter."""
-        return libcloud.get_driver(libcloud.DriverType.COMPUTE, self.get_id())
+        return libcloud.get_driver(libcloud.DriverType.COMPUTE, self._get_id())
 
     def _get_user_driver(self, **auth_credentials) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
@@ -198,15 +259,15 @@ class Adapter(object, metaclass=AdapterBase):
 
         return self._generic_driver
 
-    # Internal (overridable) methods for /meta
     @classmethod
-    def get_id(cls) -> str:
+    def _get_id(cls) -> str:
         """"Returns the id of this adapter."""
         if not cls.id:
             cls._config_error("No id set for adapter {cls}.")
 
         return cls.id
 
+    # Internal (overridable) methods for /meta
     @classmethod
     def get_default_region(cls) -> str:
         """Returns the id of the default region for this adapter."""
@@ -286,6 +347,11 @@ class Adapter(object, metaclass=AdapterBase):
         """Translates an hourly cost value for a given adapter to a monthly cost ServerSpec value."""
         return float(Decimal(self._get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
+    # Internal (overridable) methods for /key endpoints
+    @classmethod
+    def _delete_key(cls, driver, key) -> bool:
+        raise NotImplementedError()
+
     # Internal (overridable) methods for /server endpoints
     @classmethod
     def _get_create_args(cls, data) -> typing.Dict[str, typing.Any]:
@@ -303,18 +369,37 @@ class Adapter(object, metaclass=AdapterBase):
 
     def _get_ext_ip(self, server) -> str:
         """Returns the external IP of a server for this adapter."""
-        return server.public_ips[0]
+        return server.public_ips[0] if len(server.public_ips) > 0 else None
 
     def _get_int_ip(self, server) -> str:
         """Returns the internal IP of a server for this adapter."""
-        return server.private_ips[0]
+        return server.private_ips[0] if len(server.private_ips) > 0 else None
 
     def _get_password(self, server) -> typing.Optional[str]:
         """Returns the password of a server for this adapter."""
         return None
 
     # Misc internal methods
-    def _find_server(self, driver, id) -> Node:
+    def _find_location(self, driver, id) -> typing.Optional[NodeLocation]:
+        for location in driver.list_locations():
+            if location.id == id:
+                return location
+
+    def _find_size(self, driver, id) -> typing.Optional[NodeSize]:
+        for size in driver.list_sizes():
+            if size.id == id:
+                return size
+
+    def _find_image(self, driver, id) -> typing.Optional[NodeImage]:
+        for image in driver.list_images():
+            if image.id == id:
+                return image
+
+    @classmethod
+    def _find_ssh_key(cls, driver, id) -> typing.Optional[object]:
+        raise NotImplementedError()
+
+    def _find_server(self, driver, id) -> typing.Optional[Node]:
         for server in driver.list_nodes():
             if server.id == id:
                 return server
@@ -340,7 +425,7 @@ class RebootMixin(object):
 
             if not server.reboot():
                 return {"error": "Reboot failed.", "status": 500}
-        except libcloud.common.types.ProviderError as err:
+        except libcloud.common.types.LibcloudError as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
@@ -361,7 +446,7 @@ class RenameMixin(object):
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             # TODO: Actually rename the server.
-        except libcloud.common.types.ProviderError as err:
+        except libcloud.common.types.LibcloudError as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
