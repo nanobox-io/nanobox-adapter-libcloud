@@ -141,11 +141,11 @@ class Adapter(object, metaclass=AdapterBase):
 
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-            if not driver.create_key_pair(data['name'], data['key']):
+            if not driver.create_key_pair(data['id'], data['key']):
                 return {"error": "Key creation failed", "status": 500}
 
             for key in driver.list_key_pairs():
-                if key.name == data['name']:
+                if key.name == data['id']:
                     result = key
                     break
         except libcloud.common.types.LibcloudError as err:

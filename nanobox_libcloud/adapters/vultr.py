@@ -14,11 +14,11 @@ class Vultr(RebootMixin, Adapter):
 
     # Adapter metadata
     id = "vtr"
-    name = "Vultr"
+    name = "Vultr (Beta)"
 
     # Provider-wide server properties
     server_internal_iface = 'ens3'
-    # server_external_iface = None
+    server_external_iface = None
 
     # Provider auth properties
     auth_credential_fields = [
@@ -142,6 +142,10 @@ class Vultr(RebootMixin, Adapter):
             "location": location,
             "ex_ssh_key_ids": [ssh_key.id]
         }
+
+    def _get_int_ip(self, server):
+        """Returns the internal IP of a server for this adapter."""
+        return self._get_ext_ip(server)
 
     def _find_ssh_key(self, driver, id):
         for ssh_key in driver.list_key_pairs():
