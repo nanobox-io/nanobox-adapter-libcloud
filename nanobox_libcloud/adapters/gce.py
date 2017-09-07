@@ -14,7 +14,7 @@ class Gce(RebootMixin, Adapter):
 
     # Adapter metadata
     id = "gce"
-    name = "Google Compute Engine"
+    name = "Google Compute Engine (Beta)"
     server_nick_name = "instance"
 
     # Provider-wide server properties
