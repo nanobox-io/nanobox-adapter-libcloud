@@ -52,14 +52,14 @@ class Gce(RebootMixin, Adapter):
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
-            'user_id': os.getenv('GCE_SERVICE_EMAIL'),
-            'key': os.getenv('GCE_SERVICE_KEY'),
-            'project': os.getenv('GCE_PROJECT_ID')
+            'user_id': os.getenv('GCE_SERVICE_EMAIL', ''),
+            'key': os.getenv('GCE_SERVICE_KEY', ''),
+            'project': os.getenv('GCE_PROJECT_ID', '')
         }
 
         self._disk_cost_per_gb = {
-            'standard': Decimal(os.getenv('GCE_MONTHLY_DISK_COST')) / 30 / 24,
-            'ssd': Decimal(os.getenv('GCE_MONTHLY_SSD_COST')) / 30 / 24
+            'standard': Decimal(os.getenv('GCE_MONTHLY_DISK_COST', 0)) / 30 / 24,
+            'ssd': Decimal(os.getenv('GCE_MONTHLY_SSD_COST', 0)) / 30 / 24
         }
 
     # Internal overrides for provider retrieval
@@ -67,9 +67,9 @@ class Gce(RebootMixin, Adapter):
         """Extracts credentials from request headers."""
 
         return {
-            "user_id": headers.get("Auth-Service-Email"),
-            "key": parse.unquote(headers.get("Auth-Service-Key")).replace('\\n', '\n'),
-            "project": headers.get("Auth-Project-Id")
+            "user_id": headers.get("Auth-Service-Email", ''),
+            "key": parse.unquote(headers.get("Auth-Service-Key", '')).replace('\\n', '\n'),
+            "project": headers.get("Auth-Project-Id", '')
         }
 
     def _get_user_driver(self, **auth_credentials):

@@ -1,6 +1,9 @@
 import os
+import tempfile
 from urllib import parse
 from decimal import Decimal
+
+from flask import after_this_request
 
 import libcloud
 from nanobox_libcloud.adapters import Adapter
@@ -44,8 +47,8 @@ class Azure(RebootMixin, Adapter):
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
-            'subscription_id': os.getenv('AZR_SUB_ID'),
-            'key_file': os.getenv('AZR_KEY')
+            'subscription_id': os.getenv('AZR_SUB_ID', ''),
+            'key': os.getenv('AZR_KEY', '')
         }
 
     # Internal overrides for provider retrieval
@@ -53,16 +56,45 @@ class Azure(RebootMixin, Adapter):
         """Extracts credentials from request headers."""
 
         return {
-            "subscription_id": headers.get("Auth-Subscription-Id"),
-            "key_file": parse.unquote(headers.get("Auth-Key-File")).replace('\\n', '\n')
+            "subscription_id": headers.get("Auth-Subscription-Id", ''),
+            "key": parse.unquote(headers.get("Auth-Key-File", '')).replace('\\n', '\n')
         }
 
-    # def _get_user_driver(self, **auth_credentials):
-    #     """Returns a driver instance for a user with the appropriate authentication credentials set."""
-    #
-    #     auth_credentials['auth_type'] = 'SA'
-    #
-    #     return super()._get_user_driver(**auth_credentials)
+    def _get_user_driver(self, **auth_credentials):
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+
+        if self._user_driver is None:
+            with tempfile.NamedTemporaryFile(mode = 'w+', delete = False) as fp:
+                key_file = fp.name
+                fp.write(auth_credentials['key'])
+                del auth_credentials['key']
+                auth_credentials['key_file'] = key_file
+                super()._get_user_driver(**auth_credentials)
+
+            @after_this_request
+            def clr_tmp_user(response):
+                os.remove(key_file)
+                return response
+
+        return self._user_driver
+
+    def _get_generic_driver(self):
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+
+        if self._generic_driver is None:
+            with tempfile.NamedTemporaryFile(mode = 'w+', delete = False) as fp:
+                key_file = fp.name
+                fp.write(self.generic_credentials['key'])
+                del self.generic_credentials['key']
+                self.generic_credentials['key_file'] = key_file
+                super()._get_generic_driver()
+
+            @after_this_request
+            def clr_tmp_generic(response):
+                os.remove(key_file)
+                return response
+
+        return self._generic_driver
 
     @classmethod
     def _get_id(cls):
@@ -72,7 +104,7 @@ class Azure(RebootMixin, Adapter):
     def get_default_region(self):
         """Gets the default region ID."""
 
-        return ''
+        return 'westus2'
 
     def get_default_size(self):
         """Gets the default size ID."""
@@ -93,7 +125,7 @@ class Azure(RebootMixin, Adapter):
             'highspeed': [],
         }
 
-        for size in self._get_generic_driver().list_sizes(location):
+        for size in self._get_generic_driver().list_sizes():
             plan = {'A': 'standard', 'D': 'highspeed'}.get(
                 size.id.replace('Standard_', '')[:1], size.id)
 
@@ -122,6 +154,8 @@ class Azure(RebootMixin, Adapter):
     def _get_cpu(self, location, plan, size):
         """Translates a CPU count value for a given adapter to a ServerSpec value."""
 
+        if size.extra['cores'] == 'Shared':
+            return 0.5
         if size.extra['cores']:
             return float(size.extra['cores'])
 

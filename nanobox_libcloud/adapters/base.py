@@ -99,29 +99,32 @@ class Adapter(object, metaclass=AdapterBase):
             # Use generic driver because there are no auth tokens
             for location in self._get_locations():
                 catalog.append(models.ServerRegion(
-                    id=self._get_location_id(location),
-                    name=self._get_location_name(location),
-                    plans=[
+                    id = self._get_location_id(location),
+                    name = self._get_location_name(location),
+                    plans = [
                         models.ServerPlan(
-                            id=plan_id,
-                            name=plan_name,
-                            specs=[
+                            id = plan_id,
+                            name = plan_name,
+                            specs = [
                                 models.ServerSpec(
-                                    id=self._get_size_id(location, plan_id, size),
-                                    ram=self._get_ram(location, plan_id, size),
-                                    cpu=self._get_cpu(location, plan_id, size),
-                                    disk=self._get_disk(location, plan_id, size),
-                                    transfer=self._get_transfer(location, plan_id, size),
-                                    dollars_per_hr=self._get_hourly_price(location, plan_id, size),
-                                    dollars_per_mo=self._get_monthly_price(location, plan_id, size)
+                                    id = self._get_size_id(location, plan_id, size),
+                                    ram = self._get_ram(location, plan_id, size),
+                                    cpu = self._get_cpu(location, plan_id, size),
+                                    disk = self._get_disk(location, plan_id, size),
+                                    transfer = self._get_transfer(location, plan_id, size),
+                                    dollars_per_hr = self._get_hourly_price(location, plan_id, size),
+                                    dollars_per_mo = self._get_monthly_price(location, plan_id, size)
                                 ) for size in self._get_sizes(location, plan_id)
                             ]
                         ) for plan_id, plan_name in self._get_plans(location)
                     ]
                 ).to_nanobox())
-        except libcloud.common.types.LibcloudError:
+        except libcloud.common.types.LibcloudError as e:
             # TODO: Get cached data...
-            pass
+            if os.getenv('APP_NAME', 'dev') == 'dev':
+                raise e
+            else:
+                pass
 
         return catalog
 
@@ -129,8 +132,8 @@ class Adapter(object, metaclass=AdapterBase):
         """Verify the account credentials."""
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-        except libcloud.common.types.LibcloudError:
-            return False
+        except libcloud.common.types.LibcloudError as e:
+            return e
         else:
             return True
 
@@ -334,7 +337,7 @@ class Adapter(object, metaclass=AdapterBase):
 
     def _get_transfer(self, location, plan, size) -> int:
         """Translates a transfer limit value for a given adapter to a ServerSpec value."""
-        return int(size.bandwidth)
+        return int(size.bandwidth or 0) or None
 
     def _get_hourly_price(self, location, plan, size) -> float:
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""

@@ -56,7 +56,8 @@ def verify(adapter_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     return ""

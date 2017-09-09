@@ -37,7 +37,7 @@ class Vultr(RebootMixin, Adapter):
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
-            'key': os.getenv('VULTR_API_KEY')
+            'key': os.getenv('VULTR_API_KEY', '')
         }
 
     # Internal overrides for provider retrieval
@@ -45,7 +45,7 @@ class Vultr(RebootMixin, Adapter):
         """Extracts credentials from request headers."""
 
         return {
-            "key": headers.get("Auth-Api-Key")
+            "key": headers.get("Auth-Api-Key", '')
         }
 
     def _get_user_driver(self, **auth_credentials):
