@@ -119,10 +119,10 @@ class Adapter(object, metaclass=AdapterBase):
                         ) for plan_id, plan_name in self._get_plans(location)
                     ]
                 ).to_nanobox())
-        except libcloud.common.types.LibcloudError as e:
+        except libcloud.common.types.LibcloudError:
             # TODO: Get cached data...
             if os.getenv('APP_NAME', 'dev') == 'dev':
-                raise e
+                raise
             else:
                 pass
 
@@ -204,7 +204,7 @@ class Adapter(object, metaclass=AdapterBase):
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             result = driver.create_node(**self._get_create_args(data))
         except libcloud.common.types.LibcloudError as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
         else:
             return {"data": {"id": self._get_node_id(result)}, "status": 201}
 
@@ -237,7 +237,7 @@ class Adapter(object, metaclass=AdapterBase):
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
-            result = server.destroy()
+            result = self._destroy_server(server)
         except libcloud.common.types.LibcloudError as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
@@ -381,6 +381,9 @@ class Adapter(object, metaclass=AdapterBase):
     def _get_password(self, server) -> typing.Optional[str]:
         """Returns the password of a server for this adapter."""
         return None
+
+    def _destroy_server(self, server) -> bool:
+        return server.destroy()
 
     # Misc internal methods
     def _find_location(self, driver, id) -> typing.Optional[NodeLocation]:
