@@ -1,4 +1,5 @@
 import os
+import socket
 from urllib import parse
 from decimal import Decimal
 
@@ -39,6 +40,17 @@ class Vultr(RebootMixin, Adapter):
         self.generic_credentials = {
             'key': os.getenv('VULTR_API_KEY', '')
         }
+
+        try:
+            ip = socket.gethostbyname(os.getenv('APP_NAME', '') + '.nanoapp.io') or None
+        except socket.gaierror:
+            ip = None
+
+        self.auth_instructions += (' (If you need to be more specific about '
+            'the access controls, you can use %s/32, but keep in mind that '
+            'this address may change at any point in the future, and you will '
+            'need to update your Vultr account accordingly to continue '
+            'deploying.)') % (ip) if ip else ''
 
     # Internal overrides for provider retrieval
     def _get_request_credentials(self, headers):

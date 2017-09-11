@@ -47,7 +47,6 @@ class Azure(RebootMixin, Adapter):
         ('highspeed', 'High Speed'),
     ]
     _sizes = {}
-    # _image_family = 'ubuntu-1604-lts'
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
