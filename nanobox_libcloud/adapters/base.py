@@ -1,5 +1,6 @@
 import typing
 from decimal import Decimal
+from time import sleep
 
 import libcloud
 from libcloud.compute.base import NodeDriver, NodeLocation, NodeImage, NodeSize, Node
@@ -132,7 +133,7 @@ class Adapter(object, metaclass=AdapterBase):
         """Verify the account credentials."""
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-        except (libcloud.common.types.LibcloudError, ValueError) as e:
+        except (libcloud.common.types.LibcloudError, KeyError, ValueError) as e:
             return e
         else:
             return True
@@ -147,17 +148,22 @@ class Adapter(object, metaclass=AdapterBase):
             if not driver.create_key_pair(data['id'], data['key']):
                 return {"error": "Key creation failed", "status": 500}
 
-            for key in driver.list_key_pairs():
-                if key.name == data['id']:
-                    result = key
+            result = None
+            for tries in range(5):
+                for key in driver.list_key_pairs():
+                    if key.public_key == data['key']:
+                        result = key
+                        break
+                if result:
                     break
-        except libcloud.common.types.LibcloudError as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
-        else:
+                sleep(1)
+
             if not result:
                 return {"error": "Key created, but not found", "status": 500}
-
-            return {"data": {"id": result.id}, "status": 201}
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
+            return {"data": {"id": result.name}, "status": 201}
 
     def do_key_query(self, headers, id) -> typing.Dict[str, typing.Any]:
         """Query a key with a certain provider."""
@@ -174,9 +180,9 @@ class Adapter(object, metaclass=AdapterBase):
                 return {"error": "SSH key not found", "status": 404}
 
             return {"data": models.KeyInfo(
-                id=key.id,
+                id=key.id if hasattr(key, 'id') else key.name,
                 name=key.name,
-                key=key.pub_key
+                key=key.pub_key if hasattr(key, 'pub_key') else key.public_key
             ).to_nanobox(), "status": 201}
 
     def do_key_delete(self, headers, id) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
@@ -203,7 +209,7 @@ class Adapter(object, metaclass=AdapterBase):
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             result = driver.create_node(**self._get_create_args(data))
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
         else:
             return {"data": {"id": self._get_node_id(result)}, "status": 201}
@@ -351,9 +357,8 @@ class Adapter(object, metaclass=AdapterBase):
         return float(Decimal(self._get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
     # Internal (overridable) methods for /key endpoints
-    @classmethod
-    def _delete_key(cls, driver, key) -> bool:
-        raise NotImplementedError()
+    def _delete_key(self, driver, key) -> bool:
+        return driver.delete_key_pair(key)
 
     # Internal (overridable) methods for /server endpoints
     @classmethod
@@ -401,9 +406,10 @@ class Adapter(object, metaclass=AdapterBase):
             if image.id == id:
                 return image
 
-    @classmethod
-    def _find_ssh_key(cls, driver, id) -> typing.Optional[object]:
-        raise NotImplementedError()
+    def _find_ssh_key(self, driver, id) -> typing.Optional[object]:
+        for ssh_key in driver.list_key_pairs():
+            if ssh_key.name == id:
+                return ssh_key
 
     def _find_server(self, driver, id) -> typing.Optional[Node]:
         for server in driver.list_nodes():
