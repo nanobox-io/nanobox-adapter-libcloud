@@ -151,7 +151,7 @@ class Adapter(object, metaclass=AdapterBase):
             result = None
             for tries in range(5):
                 for key in driver.list_key_pairs():
-                    if key.public_key == data['key']:
+                    if (key.pub_key if hasattr(key, 'pub_key') else key.public_key) == data['key']:
                         result = key
                         break
                 if result:

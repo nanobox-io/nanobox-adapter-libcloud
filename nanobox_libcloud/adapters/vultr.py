@@ -158,8 +158,3 @@ class Vultr(RebootMixin, Adapter):
     def _get_int_ip(self, server):
         """Returns the internal IP of a server for this adapter."""
         return self._get_ext_ip(server)
-
-    def _find_ssh_key(self, driver, id):
-        for ssh_key in driver.list_key_pairs():
-            if ssh_key.id == id:
-                return ssh_key
