@@ -1,3 +1,4 @@
+import os
 import typing
 from decimal import Decimal
 from time import sleep
@@ -120,6 +121,8 @@ class Adapter(object, metaclass=AdapterBase):
                         ) for plan_id, plan_name in self._get_plans(location)
                     ]
                 ).to_nanobox())
+        except libcloud.common.exceptions.BaseHTTPError as err:
+            return err
         except libcloud.common.types.LibcloudError:
             # TODO: Get cached data...
             if os.getenv('APP_NAME', 'dev') == 'dev':
@@ -133,7 +136,7 @@ class Adapter(object, metaclass=AdapterBase):
         """Verify the account credentials."""
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-        except (libcloud.common.types.LibcloudError, KeyError, ValueError) as e:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, KeyError, ValueError) as e:
             return e
         else:
             return True
@@ -173,7 +176,7 @@ class Adapter(object, metaclass=AdapterBase):
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             key = self._find_ssh_key(driver, id)
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             if not key:
@@ -199,7 +202,7 @@ class Adapter(object, metaclass=AdapterBase):
 
             if not self._delete_key(driver, key):
                 return {"error": "Problem deleting key", "status": 500}
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
@@ -219,7 +222,7 @@ class Adapter(object, metaclass=AdapterBase):
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             server = self._find_server(driver, id)
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             if not server:
@@ -244,7 +247,7 @@ class Adapter(object, metaclass=AdapterBase):
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             result = self._destroy_server(server)
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
@@ -437,7 +440,7 @@ class RebootMixin(object):
 
             if not server.reboot():
                 return {"error": "Reboot failed.", "status": 500}
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
@@ -458,7 +461,7 @@ class RenameMixin(object):
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
             # TODO: Actually rename the server.
-        except libcloud.common.types.LibcloudError as err:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True

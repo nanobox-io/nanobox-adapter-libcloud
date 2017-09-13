@@ -45,7 +45,11 @@ def catalog(adapter_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    return output.success(adapter.do_catalog())
+    result = adapter.do_catalog()
+    if not isinstance(result, dict):
+        return output.failure(result.message if hasattr(result, 'message') else repr(result), 500)
+
+    return output.success(result)
 
 
 @app.route('/<adapter_id>/verify', methods=['POST'])
