@@ -46,7 +46,7 @@ def catalog(adapter_id):
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
     result = adapter.do_catalog()
-    if not isinstance(result, dict):
+    if not isinstance(result, list):
         return output.failure(result.message if hasattr(result, 'message') else repr(result), 500)
 
     return output.success(result)
