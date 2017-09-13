@@ -33,13 +33,14 @@ class Azure(RebootMixin, Adapter):
     # Provider auth properties
     auth_credential_fields = [
         ["Subscription-Id", "Subscription ID"],
-        ["Key-File", "Key"]
+        ["Key-File", "Certificate"]
     ]
     auth_instructions = ('Using Azure is fairly complex. First, create a '
         'self-signed certificate. Then, follow the instructions '
         '<a href="https://docs.microsoft.com/en-us/azure/azure-api-management-certs">here</a> '
         'to add the certificate to your account. Finally, enter your '
-        'subscription ID and the contents of the certificate\'s key file above.')
+        'subscription ID and the contents of the private certificate file above, '
+        'using <code>\\n</code> to replace new lines.')
 
     # Adapter-sepcific properties
     _plans = [
@@ -78,6 +79,8 @@ class Azure(RebootMixin, Adapter):
             def clr_tmp_user(response):
                 os.remove(key_file)
                 return response
+
+        self._user_driver.list_locations()
 
         return self._user_driver
 
