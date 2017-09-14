@@ -4,6 +4,7 @@ from urllib import parse
 import hashlib
 from base64 import standard_b64encode as b64enc
 from decimal import Decimal
+from time import sleep
 
 from flask import after_this_request
 
@@ -40,7 +41,7 @@ class Azure(RebootMixin, Adapter):
         '<a href="https://docs.microsoft.com/en-us/azure/azure-api-management-certs">here</a> '
         'to add the certificate to your account. Finally, enter your '
         'subscription ID and the contents of the private certificate file above, '
-        'using <code>\\n</code> to replace new lines.')
+        'using <code>\n</code> to replace new lines.')
 
     # Adapter-sepcific properties
     _plans = [
@@ -80,7 +81,10 @@ class Azure(RebootMixin, Adapter):
                 os.remove(key_file)
                 return response
 
-        self._user_driver.list_locations()
+        try:
+            self._user_driver.list_locations()
+        except AttributeError:
+            pass
 
         return self._user_driver
 
@@ -162,27 +166,48 @@ class Azure(RebootMixin, Adapter):
         """Returns the args used to create a server for this adapter."""
 
         driver = self._get_user_driver()
+        storage = data['name'].replace('-', '')
         size = self._find_size(driver, data['size'])
         image = self._find_image(driver, 'Ubuntu Server 16.04 LTS')
 
         try:
-            driver.ex_create_storage_service(
-                # name = data['name'],
-                name = 'nanobox',
-                location = data['region']
-            )
-        except libcloud.common.types.LibcloudError:
-            pass
+            storage_pending = driver._is_storage_service_unique(storage)
+        except AttributeError:
+            storage_pending = True
+
+        if storage_pending:
+            try:
+                driver.ex_create_storage_service(
+                    name = storage,
+                    location = data['region']
+                )
+            except libcloud.common.types.LibcloudError:
+                pass
+
+        while storage_pending:
+            try:
+                storage_pending = driver._is_storage_service_unique(storage)
+            except AttributeError:
+                pass
+            finally:
+                sleep(0.5)
 
         try:
-            driver.ex_create_cloud_service(
-                name = data['name'],
-                location = data['region']
-            )
-        except libcloud.common.types.LibcloudError:
-            pass
+            cs_list = [serv for serv in driver.ex_list_cloud_services()
+                if serv.service_name == data['name']
+                    and serv.hosted_service_properties.status == 'Created']
+        except AttributeError:
+            cs_list = []
 
-        cs_list = []
+        if len(cs_list) < 1:
+            try:
+                driver.ex_create_cloud_service(
+                    name = data['name'],
+                    location = data['region']
+                )
+            except libcloud.common.types.LibcloudError:
+                pass
+
         while len(cs_list) < 1:
             try:
                 cs_list = [serv for serv in driver.ex_list_cloud_services()
@@ -190,6 +215,8 @@ class Azure(RebootMixin, Adapter):
                         and serv.hosted_service_properties.status == 'Created']
             except AttributeError:
                 pass
+            finally:
+                sleep(0.5)
 
         return {
             "name": data['name'],
@@ -198,8 +225,7 @@ class Azure(RebootMixin, Adapter):
             "auth": NodeAuthPassword(self._get_password(data['name'])),
             "ex_new_deployment": True,
             "ex_admin_user_id": 'nanobox',
-            # "ex_storage_service_name": data['name'],
-            "ex_storage_service_name": 'nanobox',
+            "ex_storage_service_name": storage,
             "ex_cloud_service_name": data['name']
         }
 
@@ -216,9 +242,22 @@ class Azure(RebootMixin, Adapter):
         result = server.destroy()
 
         while self._find_server(driver, name) is not None:
-            pass
+            sleep(0.5)
 
         driver.ex_destroy_cloud_service(name)
+
+        while True:
+            try:
+                driver.ex_destroy_storage_service(name.replace('-', ''))
+            except libcloud.common.types.LibcloudError:
+                pass
+            except AttributeError:
+                # Generally caused by "Too Many Requests" response not being parsed
+                sleep(2)
+            else:
+                break
+            finally:
+                sleep(0.5)
 
         return result
 
