@@ -1,5 +1,8 @@
+amqp==2.2.2
 apache-libcloud==2.1.0
 appdirs==1.4.0
+billiard==3.5.0.3
+celery==4.1.0
 certifi==2017.7.27.1
 chardet==3.0.4
 click==6.7
@@ -9,12 +12,16 @@ gunicorn==19.7.1
 idna==2.5
 itsdangerous==0.24
 Jinja2==2.9.6
+kombu==4.1.0
 MarkupSafe==1.0
 packaging==16.8
 pycrypto==2.6.1
 pyparsing==2.1.10
+pytz==2017.2
+redis==2.10.6
 requests==2.18.2
 simplejson==3.11.1
 six==1.10.0
 urllib3==1.22
+vine==1.1.4
 Werkzeug==0.12.2

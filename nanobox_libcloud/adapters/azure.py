@@ -7,9 +7,11 @@ from decimal import Decimal
 from time import sleep
 
 from flask import after_this_request
+from celery.signals import task_postrun
 
 import libcloud
 from libcloud.compute.base import NodeAuthPassword
+from nanobox_libcloud.tasks.azure import azure_create, azure_destroy
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import RebootMixin
 
@@ -56,6 +58,16 @@ class Azure(RebootMixin, Adapter):
             'key': os.getenv('AZR_KEY', '')
         }
 
+    def do_server_create(self, headers, data):
+        """Create a server with a certain provider."""
+        try:
+            self._get_user_driver(**self._get_request_credentials(headers))
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
+            return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
+        else:
+            azure_create.delay(dict(headers), data)
+            return {"data": {"id": data['name']}, "status": 201}
+
     # Internal overrides for provider retrieval
     def _get_request_credentials(self, headers):
         """Extracts credentials from request headers."""
@@ -76,10 +88,15 @@ class Azure(RebootMixin, Adapter):
                 auth_credentials['key_file'] = key_file
                 super()._get_user_driver(**auth_credentials)
 
-            @after_this_request
-            def clr_tmp_user(response):
-                os.remove(key_file)
-                return response
+            try:
+                @after_this_request
+                def clr_tmp_user(response):
+                    os.remove(key_file)
+                    return response
+            except AttributeError:
+                @task_postrun.connect
+                def clr_tmp_user(**kwargs):
+                    os.remove(key_file)
 
         try:
             self._user_driver.list_locations()
@@ -241,23 +258,9 @@ class Azure(RebootMixin, Adapter):
 
         result = server.destroy()
 
-        while self._find_server(driver, name) is not None:
-            sleep(0.5)
-
-        driver.ex_destroy_cloud_service(name)
-
-        while True:
-            try:
-                driver.ex_destroy_storage_service(name.replace('-', ''))
-            except libcloud.common.types.LibcloudError:
-                pass
-            except AttributeError:
-                # Generally caused by "Too Many Requests" response not being parsed
-                sleep(2)
-            else:
-                break
-            finally:
-                sleep(0.5)
+        with open(driver.key_file, 'r') as key_file:
+            azure_destroy.delay({'subscription_id': driver.subscription_id,
+                                 'key': key_file.read()}, name)
 
         return result
 
