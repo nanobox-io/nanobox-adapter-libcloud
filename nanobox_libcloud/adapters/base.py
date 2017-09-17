@@ -233,8 +233,7 @@ class Adapter(object, metaclass=AdapterBase):
                 status=server.state,
                 name=server.name,
                 external_ip=self._get_ext_ip(server),
-                internal_ip=self._get_int_ip(server),
-                password=self._get_password(server)
+                internal_ip=self._get_int_ip(server)
             ).to_nanobox(), "status": 201}
 
     def do_server_cancel(self, headers, id) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
@@ -294,6 +293,11 @@ class Adapter(object, metaclass=AdapterBase):
     def get_default_plan(cls) -> str:
         """Returns the id of the default plan for this adapter."""
         raise NotImplementedError()
+
+    @classmethod
+    def can_install_key(cls) -> bool:
+        """Returns whether this adapter allows servers to install keys."""
+        return hasattr(cls, 'do_install_key') and callable(cls.do_install_key)
 
     @classmethod
     def can_reboot(cls) -> bool:
@@ -386,10 +390,6 @@ class Adapter(object, metaclass=AdapterBase):
         """Returns the internal IP of a server for this adapter."""
         return server.private_ips[0] if len(server.private_ips) > 0 else None
 
-    def _get_password(self, server) -> typing.Optional[str]:
-        """Returns the password of a server for this adapter."""
-        return None
-
     def _destroy_server(self, server) -> bool:
         return server.destroy()
 
@@ -422,6 +422,33 @@ class Adapter(object, metaclass=AdapterBase):
     @classmethod
     def _config_error(cls, msg, **kwargs):
         raise ValueError(msg.format(cls=cls.__name__, **kwargs))
+
+
+class KeyInstallMixin(object):
+    """
+    Mixin for adapters to signify that servers can install keys.
+    """
+
+    def do_install_key(self, headers, id, data) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
+        """Install an SSH key on a server with a certain provider."""
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+            server = self._find_server(driver, id)
+
+            if not server:
+                return {"error": self.server_nick_name + " not found", "status": 404}
+
+            if not self._install_key(server, data):
+                return {"error": "Key installation failed.", "status": 500}
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
+            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+        else:
+            return True
+
+    @classmethod
+    def _install_key(cls, server, key_data) -> bool:
+        """Installs key on server."""
+        raise NotImplementedError()
 
 
 class RebootMixin(object):
@@ -460,8 +487,14 @@ class RenameMixin(object):
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
 
-            # TODO: Actually rename the server.
+            if not self._rename_server(server, data['name']):
+                return {"error": "Server rename failed.", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
         else:
             return True
+
+    @classmethod
+    def _remane_server(cls, server, name) -> bool:
+        """Renames server."""
+        raise NotImplementedError()

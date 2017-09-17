@@ -10,13 +10,14 @@ from flask import after_this_request
 from celery.signals import task_postrun
 
 import libcloud
-from libcloud.compute.base import NodeAuthPassword
+from libcloud.compute.base import NodeAuthPassword, Node
+from libcloud.compute.deployment import ScriptDeployment
 from nanobox_libcloud.tasks.azure import azure_create, azure_destroy
 from nanobox_libcloud.adapters import Adapter
-from nanobox_libcloud.adapters.base import RebootMixin
+from nanobox_libcloud.adapters.base import KeyInstallMixin, RebootMixin
 
 
-class Azure(RebootMixin, Adapter):
+class Azure(RebootMixin, KeyInstallMixin, Adapter):
     """
     Adapter for the Microsoft Azure service
     """
@@ -24,7 +25,7 @@ class Azure(RebootMixin, Adapter):
     # Adapter metadata
     id = "azr"
     name = "Microsoft Azure (Beta)"
-    # server_nick_name = "instance"
+    server_nick_name = "virtual machine"
 
     # Provider-wide server properties
     server_internal_iface = 'eth0'
@@ -65,6 +66,8 @@ class Azure(RebootMixin, Adapter):
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
         else:
+            r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
+            r.setex('%s:server:%s:status' % (self.id, data['name']), 60, 'ordering')
             azure_create.delay(dict(headers), data)
             return {"data": {"id": data['name']}, "status": 201}
 
@@ -241,16 +244,27 @@ class Azure(RebootMixin, Adapter):
             "image": image,
             "auth": NodeAuthPassword(self._get_password(data['name'])),
             "ex_new_deployment": True,
-            "ex_admin_user_id": 'nanobox',
+            "ex_admin_user_id": self.server_ssh_user,
             "ex_storage_service_name": storage,
             "ex_cloud_service_name": data['name']
         }
 
-    def _get_password(self, server):
-        """Returns the password of a server for this adapter."""
-        base = server.name if hasattr(server, 'name') else server
+    def _install_key(self, server, key_data):
+        """Installs key on server."""
+        server.driver._connect_and_run_deployment_script(
+            task = ScriptDeployment('echo "%s %s" >> ~/.ssh/authorized_keys' % (key_data['key'], key_data['id'])),
+            node = server,
+            ssh_hostname = server.public_ips[0],
+            ssh_port = 22,
+            ssh_username = self.server_ssh_user,
+            ssh_password = self._get_password(server.id),
+            ssh_key_file = None,
+            ssh_timeout = 10,
+            timeout = 300,
+            max_tries = 3
+        )
 
-        return b64enc(hashlib.sha256(base.encode('utf-8')).digest()).decode('utf-8')
+        return True
 
     def _destroy_server(self, server):
         driver = self._get_user_driver()
@@ -271,6 +285,30 @@ class Azure(RebootMixin, Adapter):
                 and 'DAILY' not in img.id], key=id, reverse=True)[0]
 
     def _find_server(self, driver, id):
-        for server in driver.list_nodes(ex_cloud_service_name = id):
-            if server.id == id:
-                return server
+        try:
+            for server in driver.list_nodes(ex_cloud_service_name = id):
+                if server.id == id:
+                    return server
+        except libcloud.common.exceptions.BaseHTTPError:
+            pass
+
+        r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
+        status = r.get('%s:server:%s:status' % (self.id, id))
+
+        if status:
+            return Node(
+                id = id,
+                name = id,
+                state = status,
+                public_ips = [],
+                private_ips = [],
+                driver = driver,
+                extra = {}
+            )
+
+    # Misc internal-only methods
+    def _get_password(self, server):
+        """Returns the password of a server for this adapter."""
+        base = server.name if hasattr(server, 'name') else server
+
+        return b64enc(hashlib.sha256(base.encode('utf-8')).digest()).decode('utf-8')

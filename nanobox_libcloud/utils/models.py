@@ -142,18 +142,12 @@ class ServerInfo(Model):
     name = None  # type: str
     external_ip = None  # type: str
     internal_ip = None  # type: str
-    password = None  # type: str
 
     def to_nanobox(self) -> typing.Dict[str, typing.Any]:
-        result = {
+        return {
             'id': self.id,
             'status': 'active' if self.status == NodeState.RUNNING else self.status,
             'name': self.name,
             'external_ip': self.external_ip,
             'internal_ip': self.internal_ip,
         }
-
-        if self.password:
-            result['password'] = self.password
-
-        return result

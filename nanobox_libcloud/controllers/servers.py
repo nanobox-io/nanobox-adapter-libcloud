@@ -62,6 +62,28 @@ def server_cancel(adapter_id, server_id):
     return ""
 
 
+@app.route('/<adapter_id>/servers/<server_id>/keys', methods=['PATCH'])
+def server_install_key(adapter_id, server_id):
+    """Installes an SSH key on a server using a certain adapter, if that adapter supports key installation."""
+    adapter = get_adapter(adapter_id)
+
+    if not adapter:
+        return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
+
+    if not adapter.can_install_key():
+        return output.failure("This adapter doesn't support installing keys on servers.", 501)
+
+    if not adapter.do_verify(request.headers):
+        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+
+    result = adapter.do_install_key(request.headers, server_id, request.json)
+
+    if isinstance(result, dict) and 'error' in result:
+        return output.failure(result['error'], result['status'])
+
+    return ""
+
+
 @app.route('/<adapter_id>/servers/<server_id>/reboot', methods=['PATCH'])
 def server_reboot(adapter_id, server_id):
     """Reboots a server using a certain adapter, if that adapter supports rebooting."""

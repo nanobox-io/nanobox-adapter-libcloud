@@ -365,10 +365,6 @@
                 "size": {
                   "description": "the size of server to provision, which will match an `id` provided in the aforementioned catalog",
                   "type": "string"
-                },
-                "ssh_key": {
-                  "description": "id of the SSH key created during the `/keys` request",
-                  "type": "string"
                 }
               },
               "type": "object"
@@ -432,8 +428,7 @@
                 "status": "active",
                 "name": "nanobox.io-cool-app-do.1.1",
                 "external_ip": "192.0.2.15",
-                "internal_ip": "192.168.0.15",
-                "password": "d7h%*ttGqY"
+                "internal_ip": "192.168.0.15"
               }
             },
             "schema": {
@@ -464,10 +459,6 @@
                 "internal_ip": {
                   "description": "internal or private IP of the server",
                   "type": "string"
-                },
-                "password": {
-                  "description": "the ssh password to use (if ssh_auth_method is password)",
-                  "type": "string"
                 }
               },
               "type": "object"
@@ -490,6 +481,61 @@
         },
         "operationId": "cancel-server",
         "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "the server id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation"
+          },
+          "default": {
+            "$ref": "#/responses/default"
+          }
+        }
+      }
+    },
+    "/servers/{id}/keys": {
+      "patch": {
+        "tags": [
+          "keys",
+          "servers"
+        ],
+        "summary": "Install SSH Key On Server",
+        "description": "<p>The `/servers/{id}/keys` route is used to authorize Nanobox with a server that was previously ordered via Nanobox. Nanobox will pre-generate an SSH key for the user's account, and this route allows Nanobox to register that key with the server so that Nanobox can access it after it is ordered.</p> <p>NOTE: This route is *only* required if your provider uses passwords for SSH instead of SSH keys.</p>",
+        "externalDocs": {
+          "description": "Official documentation here",
+          "url": "https://docs.nanobox.io/providers/create/#install-ssh-key"
+        },
+        "operationId": "install-ssh-key",
+        "parameters": [
+          {
+            "name": "payload",
+            "in": "body",
+            "description": "Key ID and contents to save",
+            "required": true,
+            "schema": {
+              "required": [
+                "id",
+                "key"
+              ],
+              "properties": {
+                "id": {
+                  "description": "the user-friendly name of the key",
+                  "type": "string"
+                },
+                "key": {
+                  "description": "The public key to register on the server.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
           {
             "name": "id",
             "in": "path",
@@ -583,6 +629,10 @@
     {
       "name": "meta",
       "description": "Endpoints related to the provider"
+    },
+    {
+      "name": "keys",
+      "description": "Endpoints related to SSH key management"
     },
     {
       "name": "servers",
