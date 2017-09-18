@@ -1,10 +1,12 @@
 import os
 import tempfile
+import logging
 from urllib import parse
 import hashlib
 from base64 import standard_b64encode as b64enc
 from decimal import Decimal
 from time import sleep
+import redis
 
 from flask import after_this_request
 from celery.signals import task_postrun
@@ -12,19 +14,19 @@ from celery.signals import task_postrun
 import libcloud
 from libcloud.compute.base import NodeAuthPassword, Node
 from libcloud.compute.deployment import ScriptDeployment
-from nanobox_libcloud.tasks.azure import azure_create, azure_destroy
+from nanobox_libcloud.tasks.azure import azure_create_classic, azure_destroy_classic
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import KeyInstallMixin, RebootMixin
 
 
-class Azure(RebootMixin, KeyInstallMixin, Adapter):
+class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
     """
-    Adapter for the Microsoft Azure service
+    Adapter for the Classic Microsoft Azure service
     """
 
     # Adapter metadata
-    id = "azr"
-    name = "Microsoft Azure (Beta)"
+    id = "azc"
+    name = "Microsoft Azure Classic (Beta)"
     server_nick_name = "virtual machine"
 
     # Provider-wide server properties
@@ -39,7 +41,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
         ["Subscription-Id", "Subscription ID"],
         ["Key-File", "Certificate"]
     ]
-    auth_instructions = ('Using Azure is fairly complex. First, create a '
+    auth_instructions = ('Using Azure CLassic is fairly complex. First, create a '
         'self-signed certificate. Then, follow the instructions '
         '<a href="https://docs.microsoft.com/en-us/azure/azure-api-management-certs">here</a> '
         'to add the certificate to your account. Finally, enter your '
@@ -55,8 +57,8 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
-            'subscription_id': os.getenv('AZR_SUB_ID', ''),
-            'key': os.getenv('AZR_KEY', '')
+            'subscription_id': os.getenv('AZC_SUB_ID', ''),
+            'key': os.getenv('AZC_KEY', '')
         }
 
     def do_server_create(self, headers, data):
@@ -67,8 +69,8 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
         else:
             r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
-            r.setex('%s:server:%s:status' % (self.id, data['name']), 60, 'ordering')
-            azure_create.delay(dict(headers), data)
+            r.setex('%s:server:%s:status' % (self.id, data['name']), 180, 'ordering')
+            azure_create_classic.delay(dict(headers), data)
             return {"data": {"id": data['name']}, "status": 201}
 
     # Internal overrides for provider retrieval
@@ -185,8 +187,9 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
     def _get_create_args(self, data):
         """Returns the args used to create a server for this adapter."""
 
+        logger = logging.getLogger(__name__)
         driver = self._get_user_driver()
-        storage = data['name'].replace('-', '')
+        storage = data['name'].rsplit('-', 1)[0].replace('-', '')
         size = self._find_size(driver, data['size'])
         image = self._find_image(driver, 'Ubuntu Server 16.04 LTS')
 
@@ -196,6 +199,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             storage_pending = True
 
         if storage_pending:
+            logger.info('Creating storage service...')
             try:
                 driver.ex_create_storage_service(
                     name = storage,
@@ -204,6 +208,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             except libcloud.common.types.LibcloudError:
                 pass
 
+        logger.info('Waiting for storage service...')
         while storage_pending:
             try:
                 storage_pending = driver._is_storage_service_unique(storage)
@@ -220,6 +225,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             cs_list = []
 
         if len(cs_list) < 1:
+            logger.info('Creating cloud service...')
             try:
                 driver.ex_create_cloud_service(
                     name = data['name'],
@@ -228,6 +234,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             except libcloud.common.types.LibcloudError:
                 pass
 
+        logger.info('Waiting for cloud service...')
         while len(cs_list) < 1:
             try:
                 cs_list = [serv for serv in driver.ex_list_cloud_services()
@@ -238,6 +245,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             finally:
                 sleep(0.5)
 
+        logger.info('Creating server...')
         return {
             "name": data['name'],
             "size": size,
@@ -257,7 +265,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
             ssh_hostname = server.public_ips[0],
             ssh_port = 22,
             ssh_username = self.server_ssh_user,
-            ssh_password = self._get_password(server.id),
+            ssh_password = self._get_password(server),
             ssh_key_file = None,
             ssh_timeout = 10,
             timeout = 300,
@@ -273,7 +281,7 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
         result = server.destroy()
 
         with open(driver.key_file, 'r') as key_file:
-            azure_destroy.delay({'subscription_id': driver.subscription_id,
+            azure_destroy_classic.delay({'subscription_id': driver.subscription_id,
                                  'key': key_file.read()}, name)
 
         return result
@@ -285,12 +293,14 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
                 and 'DAILY' not in img.id], key=id, reverse=True)[0]
 
     def _find_server(self, driver, id):
+        err = None
+
         try:
-            for server in driver.list_nodes(ex_cloud_service_name = id):
+            for server in driver.list_nodes(id):
                 if server.id == id:
                     return server
-        except libcloud.common.exceptions.BaseHTTPError:
-            pass
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, AttributeError) as e:
+            err = e
 
         r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
         status = r.get('%s:server:%s:status' % (self.id, id))
@@ -305,6 +315,8 @@ class Azure(RebootMixin, KeyInstallMixin, Adapter):
                 driver = driver,
                 extra = {}
             )
+        elif err:
+            raise err
 
     # Misc internal-only methods
     def _get_password(self, server):

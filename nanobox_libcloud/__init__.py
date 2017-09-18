@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from celery import Celery
+from werkzeug.contrib.fixers import ProxyFix
 
 
 # Create and set up celery instance
@@ -25,6 +26,7 @@ def make_celery(app):
 
 # Instantiate Flask app
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app)
 CORS(app)
 app.config.update(
     CELERY_BROKER_URL='redis://%s:6379' % (os.getenv('DATA_REDIS_HOST')),

@@ -279,7 +279,7 @@
                   "type": "string"
                 },
                 "ssh_auth_method": {
-                  "description": "will either be key or password",
+                  "description": "will either be 'key' or 'password'. When set to 'key', Nanobox will behave in accordance with the <code>ssh_key_method</code> value. When set to 'password', Nanobox will use the install server key endpoint to install the SSH key manually via the adapter instead of passing it in the create server step.",
                   "type": "string",
                   "enum": [
                     "key",
@@ -287,7 +287,7 @@
                   ]
                 },
                 "ssh_key_method": {
-                  "description": "will either be reference or object. When set to 'reference', Nanobox will first create the SSH key in the user's provider account, then pass a reference to it when servers are created. When set to 'object', Nanobox will pass the actual public SSH key that should be installed on the server.",
+                  "description": "will either be 'reference' or 'object'. When set to 'reference', Nanobox will first create the SSH key in the user's provider account, then pass a reference to it when servers are created. When set to 'object', Nanobox will pass the actual public SSH key that should be installed on the server.",
                   "type": "string",
                   "enum": [
                     "reference",

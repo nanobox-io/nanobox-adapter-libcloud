@@ -1,8 +1,8 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Nanobox Adapter: Microsoft Azure",
-    "description": "An adapter for deploying Nanobox apps to Microsoft Azure.",
+    "title": "Nanobox Adapter: Classic Microsoft Azure",
+    "description": "An adapter for deploying Nanobox apps to Microsoft Azure (Classic).",
     "contact": {
       "name": "Dan Hunsaker",
       "email": "dan@nanobox.io"
