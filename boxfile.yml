@@ -2,7 +2,7 @@ run.config:
   engine: python
   engine.config:
     runtime: python-3.6
-  extra_packages:
+  dev_packages:
     - inotify-tools
   fs_watch: true
 
@@ -10,7 +10,7 @@ web.main:
   start:
     flask: gunicorn -c /app/etc/gunicorn.py nanobox_libcloud:app
 
-worker.redis:
+worker.celery:
   start:
     celery: celery -A nanobox_libcloud.celery worker -E -l info
 

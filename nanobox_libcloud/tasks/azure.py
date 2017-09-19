@@ -91,10 +91,11 @@ def azure_destroy_classic(creds, name):
     while self._find_server(driver, name) is not None:
         sleep(0.5)
 
-    if len(driver.list_nodes(name)) < 1:
-        logger.info('Removing cloud service...')
-        driver.ex_destroy_cloud_service(name)
+    logger.info('Removing cloud service...')
+    driver.ex_destroy_cloud_service(name)
 
+    if len([cloud for cloud in driver.ex_list_cloud_services()
+            if cloud.service_name.startswith(name.rsplit('-', 1)[0])]) < 1:
         logger.info('Removing storage service...')
         while True:
             try:
