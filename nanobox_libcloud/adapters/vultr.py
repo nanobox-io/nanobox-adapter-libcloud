@@ -3,6 +3,8 @@ import socket
 from urllib import parse
 from decimal import Decimal
 
+from flask import request
+
 import libcloud
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import RebootMixin
@@ -41,10 +43,14 @@ class Vultr(RebootMixin, Adapter):
             'key': os.getenv('VULTR_API_KEY', '')
         }
 
-        try:
-            ip = socket.gethostbyname(os.getenv('APP_NAME', '') + '.nanoapp.io') or None
-        except socket.gaierror:
-            ip = None
+        for host in [request.host, os.getenv('APP_NAME', '') + '.nanoapp.io']:
+            try:
+                ip = socket.gethostbyname(host) or None
+            except socket.gaierror:
+                ip = None
+
+            if ip:
+                break
 
         self.auth_instructions += (' (If you need to be more specific about '
             'the access controls, you can use %s/32, but keep in mind that '

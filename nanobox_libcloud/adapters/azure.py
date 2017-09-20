@@ -26,7 +26,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
 
     # Adapter metadata
     id = "azc"
-    name = "Microsoft Azure Classic (Beta)"
+    name = "Microsoft Azure Classic (Experimental)"
     server_nick_name = "virtual machine"
 
     # Provider-wide server properties
@@ -256,6 +256,10 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
             "ex_storage_service_name": storage,
             "ex_cloud_service_name": data['name']
         }
+
+    def _get_int_ip(self, server):
+        """Returns the internal IP of a server for this adapter."""
+        return server.public_ips[0] if len(server.public_ips) > 0 else None
 
     def _install_key(self, server, key_data):
         """Installs key on server."""

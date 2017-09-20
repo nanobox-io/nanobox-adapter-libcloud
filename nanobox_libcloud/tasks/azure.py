@@ -54,32 +54,32 @@ def azure_create_classic(headers, data):
         else:
             break
 
-    for low in range(32768, 61000, 1024):
-        logger.info('Adding ports %d through %d...' % (low, min(low + 1023, 61000)))
-
-        node = None
-        while node is None or 'instance_endpoints' not in node.extra:
-            try:
-                node = self._find_server(driver, data['name'])
-            except (AttributeError, libcloud.common.types.LibcloudError):
-                sleep(2)
-
-        while True:
-            try:
-                driver.ex_add_instance_endpoints(node, [
-                    {"name": 'Ephemeral TCP Port %d' % (port), "protocol": 'TCP', "port": port, "local_port": port}
-                        for port in range(low, min(low + 1023, 61000) + 1)
-                ] + [
-                    {"name": 'Ephemeral UDP Port %d' % (port), "protocol": 'UDP', "port": port, "local_port": port}
-                        for port in range(low, min(low + 1023, 61000) + 1)
-                ], 'production')
-            except AttributeError:
-                pass
-            except libcloud.common.types.LibcloudError as e:
-                if 'currently performing an operation' not in repr(e):
-                    logger.info(repr(e))
-            else:
-                break
+    # for low in range(32768, 61000, 1024):
+    #     logger.info('Adding ports %d through %d...' % (low, min(low + 1023, 61000)))
+    #
+    #     node = None
+    #     while node is None or 'instance_endpoints' not in node.extra:
+    #         try:
+    #             node = self._find_server(driver, data['name'])
+    #         except (AttributeError, libcloud.common.types.LibcloudError):
+    #             sleep(2)
+    #
+    #     while True:
+    #         try:
+    #             driver.ex_add_instance_endpoints(node, [
+    #                 {"name": 'Ephemeral TCP Port %d' % (port), "protocol": 'TCP', "port": port, "local_port": port}
+    #                     for port in range(low, min(low + 1023, 61000) + 1)
+    #             ] + [
+    #                 {"name": 'Ephemeral UDP Port %d' % (port), "protocol": 'UDP', "port": port, "local_port": port}
+    #                     for port in range(low, min(low + 1023, 61000) + 1)
+    #             ], 'production')
+    #         except AttributeError:
+    #             pass
+    #         except libcloud.common.types.LibcloudError as e:
+    #             if 'currently performing an operation' not in repr(e):
+    #                 logger.info(repr(e))
+    #         else:
+    #             break
 
 @celery.task
 def azure_destroy_classic(creds, name):
