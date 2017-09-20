@@ -27,7 +27,11 @@ class Vultr(RebootMixin, Adapter):
     auth_credential_fields = [
         ["Api-Key", "API Key"],
     ]
-    auth_instructions = ('Enter your Personal Access Token from '
+    auth_instructions = ('<strong>The $2.50/month server size is not available '
+        'via the Vultr API. It is a sandbox size, and is limited to two '
+        'instances per account, for testing purposes. You will not be able to '
+        'use this server size with Nanobox.</strong><br /><br />'
+        'Enter your Personal Access Token from '
         '<a href="https://my.vultr.com/settings/#settingsapi">your API Settings '
         'page</a>, and ensure you allow Any IPv4 in Access Control.')
 
