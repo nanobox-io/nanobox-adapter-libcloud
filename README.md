@@ -13,6 +13,17 @@ _Please keep this list sorted alphabetically by provider name to help with findi
 -   `GCE_MONTHLY_DISK_COST`
 -   `GCE_MONTHLY_SSD_COST`
 
+### Microsoft Azure Classic (Experimental)
+-   `AZC_SUB_ID`\*
+-   `AZC_KEY`\*
+
+### Microsoft Azure Resource Manager
+-   `AZR_SUBSCRIPTION_ID`\*
+-   `AZR_TENANT_ID`\*
+-   `AZR_APPLICATION_ID`\*
+-   `AZR_AUTHENTICATION_KEY`\*
+-   `AZR_CLOUD_ENVIRONMENT`\* (optional)
+
 ### Vultr
 -   `VULTR_API_KEY`\*
 

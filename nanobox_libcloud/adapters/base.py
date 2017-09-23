@@ -2,6 +2,7 @@ import os
 import typing
 from decimal import Decimal
 from time import sleep
+from operator import attrgetter
 
 import libcloud
 from libcloud.compute.base import NodeDriver, NodeLocation, NodeImage, NodeSize, Node
@@ -116,7 +117,7 @@ class Adapter(object, metaclass=AdapterBase):
                                     transfer = self._get_transfer(location, plan_id, size),
                                     dollars_per_hr = self._get_hourly_price(location, plan_id, size),
                                     dollars_per_mo = self._get_monthly_price(location, plan_id, size)
-                                ) for size in self._get_sizes(location, plan_id)
+                                ) for size in sorted(self._get_sizes(location, plan_id), key=attrgetter('ram', 'disk', 'name'))
                             ]
                         ) for plan_id, plan_name in self._get_plans(location)
                     ]
