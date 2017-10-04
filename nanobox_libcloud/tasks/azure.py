@@ -1,5 +1,5 @@
 from nanobox_libcloud import celery
-from nanobox_libcloud.adapters import azure
+from nanobox_libcloud import adapters
 from time import sleep
 import logging
 import libcloud
@@ -11,7 +11,7 @@ from requests.exceptions import ReadTimeout
 @celery.task
 def azure_create_classic(headers, data):
     logger = logging.getLogger(__name__)
-    self = azure.AzureClassic()
+    self = adapters.azure.AzureClassic()
     driver = self._get_user_driver(**self._get_request_credentials(headers))
 
     logger.info('Creating server and dependencies...')

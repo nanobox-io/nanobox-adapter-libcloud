@@ -14,7 +14,7 @@ from celery.signals import task_postrun
 import libcloud
 from libcloud.compute.base import NodeAuthPassword, Node
 from libcloud.compute.deployment import ScriptDeployment
-from nanobox_libcloud.tasks.azure import azure_create_classic, azure_destroy_classic
+from nanobox_libcloud import tasks
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import KeyInstallMixin, RebootMixin
 
@@ -70,7 +70,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
         else:
             r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
             r.setex('%s:server:%s:status' % (self.id, data['name']), 180, 'ordering')
-            azure_create_classic.delay(dict(headers), data)
+            tasks.azure.azure_create_classic.delay(dict(headers), data)
             return {"data": {"id": data['name']}, "status": 201}
 
     # Internal overrides for provider retrieval
@@ -285,8 +285,9 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
         result = server.destroy()
 
         with open(driver.key_file, 'r') as key_file:
-            azure_destroy_classic.delay({'subscription_id': driver.subscription_id,
-                                 'key': key_file.read()}, name)
+            tasks.azure.azure_destroy_classic.delay({
+                'subscription_id': driver.subscription_id,
+                'key': key_file.read()}, name)
 
         return result
 
