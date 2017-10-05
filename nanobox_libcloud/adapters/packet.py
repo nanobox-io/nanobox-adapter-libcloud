@@ -17,16 +17,19 @@ class Packet(RebootMixin, Adapter):
     name = "Packet (Beta)"
 
     # Provider-wide server properties
-    # server_internal_iface = 'ens3'
-    # server_external_iface = None
+    server_internal_iface = 'bond0'
+    server_external_iface = None
 
     # Provider auth properties
     auth_credential_fields = [
         ["Api-Key", "API Key"],
         ["Project-Id", "Project ID"],
     ]
-    auth_instructions = (''
-        '')
+    auth_instructions = ('Your API Key can be found (or created) on the API Keys '
+        'tab of your Packet account. Your Project ID is available in the Manage '
+        'tab, just below your project\'s row in the table, or on the project\'s '
+        'detail page. You will need to create a project if you don\'t have one '
+        'already.')
 
     # Adapter-sepcific properties
     _plans = [
@@ -89,8 +92,7 @@ class Packet(RebootMixin, Adapter):
     def _get_sizes(self, location, plan):
         """Retrieves a list of sizes for a given adapter."""
 
-        data = self._get_generic_driver().connection.request('/plans').object['plans']
-        return list(map(self._to_size, [size for size in data if size['line'] not in ['storage']]))
+        return self._get_generic_driver().list_sizes()
 
     def _get_cpu(self, location, plan, size):
         """Translates a CPU count value for a given adapter to a ServerSpec value."""
@@ -99,12 +101,6 @@ class Packet(RebootMixin, Adapter):
             return float(size.extra['cpus'])
 
         return size.extra['cpus']
-
-    # def _get_hourly_price(self, location, plan, size):
-    #     """Translates an hourly cost value for a given adapter to a ServerSpec value."""
-    #
-    #     base_price = super()._get_hourly_price(location, plan, size) or 0
-    #     return float(base_price / (30 * 24)) or None
 
     # Internal overrides for /server endpoints
     def _get_create_args(self, data):
@@ -124,13 +120,9 @@ class Packet(RebootMixin, Adapter):
             "ex_project_id": self.project_id
         }
 
-    # def _get_int_ip(self, server):
-    #     """Returns the internal IP of a server for this adapter."""
-    #     return self._get_ext_ip(server)
-
     # Misc internal overrides
     def _find_size(self, driver, id):
-        for size in self._get_sizes(None, None):
+        for size in driver.list_sizes():
             if size.id == id:
                 return size
 
@@ -138,29 +130,3 @@ class Packet(RebootMixin, Adapter):
         for server in driver.list_nodes(self.project_id):
             if server.id == id:
                 return server
-
-    # Internal-only methods
-    def _to_size(self, data):
-        extra = {'description': data['description'], 'line': data['line'],
-                 'cpus': sum([cpus['count'] for cpus in data['specs']['cpus']])}
-
-        ram = data['specs']['memory']['total'].lower()
-        if 'mb' in ram:
-            ram = int(ram.replace('mb', ''))
-        elif 'gb' in ram:
-            ram = int(ram.replace('gb', '')) * 1024
-
-        disk = 0
-        for disks in data['specs']['drives']:
-            disk_count = disks['count'] if hasattr(data, 'features') and \
-                hasattr(data['features'], 'raid') and \
-                    not data['features']['raid'] else 1
-            if 'GB' in disks['size']:
-                disk += int(disk_count * float(disks['size'].replace('GB', '')))
-            elif 'TB' in disks['size']:
-                disk += int(disk_count * float(disks['size'].replace('TB', '')) * 1024)
-
-        price = data['pricing']['hour']
-
-        return libcloud.compute.base.NodeSize(id=data['slug'], name=data['name'], ram=ram, disk=disk,
-                        bandwidth=0, price=price, extra=extra, driver=self)
