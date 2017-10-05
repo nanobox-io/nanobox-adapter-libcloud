@@ -25,159 +25,6 @@
     "application/json"
   ],
   "paths": {
-    "/keys": {
-      "post": {
-        "tags": [
-          "keys"
-        ],
-        "summary": "Create SSH Key",
-        "description": "<p>The `/keys` route is used to authorize Nanobox with the user's account that will be ordering servers. After ordering a server, Nanobox needs to SSH into the server to provision it. Nanobox will pre-generate an SSH key for the user's account and the authorization route allows Nanobox to register this key with the user's account on this provider so that Nanobox can access the server after it is ordered.</p> <p>NOTE: This route is *not* required if your provider uses passwords for SSH instead of SSH keys, assuming the password to access the server is returned in the order server payload.</p>",
-        "externalDocs": {
-          "description": "Official documentation here",
-          "url": "https://docs.nanobox.io/providers/create/#create-ssh-key"
-        },
-        "operationId": "create-ssh-key",
-        "parameters": [
-          {
-            "name": "payload",
-            "in": "body",
-            "description": "Key ID and contents to save",
-            "required": true,
-            "schema": {
-              "required": [
-                "id",
-                "key"
-              ],
-              "properties": {
-                "id": {
-                  "description": "the user-friendly name of the key",
-                  "type": "string"
-                },
-                "key": {
-                  "description": "The public key to register with the user's account. It is assumed that this public key will be installed on every server launched by this integration.",
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "successful operation",
-            "examples": {
-              "application/json": {
-                "id": "provider-key-ID"
-              }
-            },
-            "schema": {
-              "required": [
-                "id"
-              ],
-              "properties": {
-                "id": {
-                  "description": "fingerprint or key identifier to use when ordering servers",
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            }
-          },
-          "default": {
-            "$ref": "#/responses/default"
-          }
-        }
-      }
-    },
-    "/keys/{id}": {
-      "get": {
-        "tags": [
-          "keys"
-        ],
-        "summary": "Query SSH Key",
-        "description": "<p>The `GET /keys/{id}` route is used by Nanobox to query the existence of previously created key.</p> <p>NOTE: This route is *not* required if your provider uses passwords for SSH instead of SSH keys, assuming the password to access the server is returned in the order server payload.</p>",
-        "externalDocs": {
-          "description": "Official documentation here",
-          "url": "https://docs.nanobox.io/providers/create/#query-ssh-key"
-        },
-        "operationId": "query-ssh-key",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the key id",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "successful operation",
-            "examples": {
-              "application/json": {
-                "id": "provider-key-ID",
-                "name": "nanobox-provider-account-ID",
-                "public_key": "CONTENTS OF PUBLIC KEY"
-              }
-            },
-            "schema": {
-              "required": [
-                "id",
-                "name",
-                "public_key"
-              ],
-              "properties": {
-                "id": {
-                  "description": "fingerprint or key identifier to use when ordering servers",
-                  "type": "string"
-                },
-                "name": {
-                  "description": "the user-friendly name of the key",
-                  "type": "string"
-                },
-                "public_key": {
-                  "description": "contents of public key",
-                  "type": "string"
-                }
-              },
-              "type": "object"
-            }
-          },
-          "default": {
-            "$ref": "#/responses/default"
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "keys"
-        ],
-        "summary": "Delete SSH Key",
-        "description": "<p>The `DELETE /keys/{id}` route is used to cancel a key that was previously created via Nanobox.</p> <p>NOTE: This route is *not* required if your provider uses passwords for SSH instead of SSH keys, assuming the password to access the server is returned in the order server payload.</p>",
-        "externalDocs": {
-          "description": "Official documentation here",
-          "url": "https://docs.nanobox.io/providers/create/#delete-ssh-key"
-        },
-        "operationId": "delete-ssh-key",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the key id",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "successful operation"
-          },
-          "default": {
-            "$ref": "#/responses/default"
-          }
-        }
-      }
-    },
     "/meta": {
       "get": {
         "tags": [
@@ -683,6 +530,11 @@
       "name": "Auth-Project-Id",
       "in": "header",
       "type": "apiKey"
+    },
+    "Auth-App-Region": {
+      "name": "Auth-App-Region",
+      "in": "header",
+      "type": "apiKey"
     }
   },
   "security": [
@@ -697,6 +549,9 @@
     },
     {
       "Auth-Project-Id": []
+    },
+    {
+      "Auth-App-Region": []
     }
   ],
   "responses": {
@@ -723,10 +578,6 @@
     {
       "name": "meta",
       "description": "Endpoints related to the provider"
-    },
-    {
-      "name": "keys",
-      "description": "Endpoints related to SSH key management"
     },
     {
       "name": "servers",
