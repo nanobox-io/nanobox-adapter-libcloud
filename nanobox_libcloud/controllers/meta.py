@@ -9,7 +9,7 @@ from nanobox_libcloud.utils import output
 @app.route('/', methods=['GET'])
 def overview():
     """Provides an overview of the libcloud meta-adapter, and how to use it, in the most general sense."""
-    adapters = AdapterBase.registry.keys()
+    adapters = sorted(AdapterBase.registry.keys())
 
     return render_template("overview.html", adapters=adapters)
 
