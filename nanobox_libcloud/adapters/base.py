@@ -496,6 +496,6 @@ class RenameMixin(object):
             return True
 
     @classmethod
-    def _remane_server(cls, server, name) -> bool:
+    def _rename_server(cls, server, name) -> bool:
         """Renames server."""
         raise NotImplementedError()

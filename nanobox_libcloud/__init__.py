@@ -1,3 +1,4 @@
+import logging
 import os
 from flask import Flask
 from flask_cors import CORS
@@ -33,6 +34,7 @@ app.config.update(
     CELERY_RESULT_BACKEND='redis://%s:6379' % (os.getenv('DATA_REDIS_HOST'))
 )
 celery = make_celery(app)
+logging.basicConfig(level=os.getenv('FLASK_LOG_LEVEL', logging.WARNING))
 
 
 # Load controllers and tasks
