@@ -149,7 +149,7 @@ class Adapter(object, metaclass=AdapterBase):
 
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-            if not driver.create_key_pair(data['id'], data['key']):
+            if not self._create_key(driver, data):
                 return {"error": "Key creation failed", "status": 500}
 
             result = None
@@ -365,6 +365,9 @@ class Adapter(object, metaclass=AdapterBase):
         return float(Decimal(self._get_hourly_price(location, plan, size) or 0) * 30 * 24) or None
 
     # Internal (overridable) methods for /key endpoints
+    def _create_key(self, driver, key) -> bool:
+        return driver.create_key_pair(key['id'], key['key'])
+
     def _delete_key(self, driver, key) -> bool:
         return driver.delete_key_pair(key)
 

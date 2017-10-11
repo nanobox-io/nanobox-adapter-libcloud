@@ -20,16 +20,18 @@ class Scaleway(RebootMixin, Adapter):
     name = "Scaleway (Beta)"
 
     # Provider-wide server properties
-    server_internal_iface = 'ens3'
+    server_internal_iface = 'eth0'
     server_external_iface = None
 
     # Provider auth properties
     auth_credential_fields = [
-        ["Access Key", "Access Key"],
+        ["Access-Key", "Access Key"],
         ["Api-Token", "API Token"],
     ]
-    auth_instructions = (''
-        '')
+    auth_instructions = ('Your Access Key can be found in the Tokens section of '
+        '<a href="https://cloud.scaleway.com/#/credentials">your credentials '
+        'page</a>, directly above the token list. Use the <code>Create new '
+        'token</code> button to create an API Token for use by Nanobox.')
 
     # Adapter-sepcific properties
     _plans = [
@@ -120,8 +122,8 @@ class Scaleway(RebootMixin, Adapter):
         return float(size.extra.get('monthly', 0)) or None
 
     # Internal overrides for /key endpoints
-    # def _delete_key(self, driver, key):
-    #     return driver.delete_key_pair(key)
+    def _create_key(self, driver, key):
+        return driver.import_key_pair_from_string(key['id'], key['key'])
 
     # Internal overrides for /server endpoints
     def _get_create_args(self, data):
@@ -133,14 +135,12 @@ class Scaleway(RebootMixin, Adapter):
         size = self._find_size(driver, data['size'])
         image = self._find_image(driver, data['region'],
                                  'Ubuntu Xenial (16.04 latest)')
-        # ssh_key = self._find_ssh_key(driver, data['ssh_key'])
 
         return {
             'name': data['name'],
             'size': size,
             'image': image,
             'region': location,
-            # 'ex_ssh_key_ids': [ssh_key.id]
         }
 
     def _get_node_id(self, node):
