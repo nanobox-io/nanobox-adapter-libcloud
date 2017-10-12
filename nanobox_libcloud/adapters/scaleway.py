@@ -2,6 +2,7 @@ import os
 import socket
 from urllib import parse
 from decimal import Decimal
+from currency_converter import CurrencyConverter
 
 from flask import request
 
@@ -116,10 +117,17 @@ class Scaleway(RebootMixin, Adapter):
 
         return size.extra['cores']
 
-    def _get_monthly_price(self, location, plan, size):
-        """Translates an monthly cost value for a given adapter to a ServerSpec value."""
+    def _get_hourly_price(self, location, plan, size):
+        """Translates an hourly cost value for a given adapter to a ServerSpec value."""
 
-        return float(size.extra.get('monthly', 0)) or None
+        c = CurrencyConverter('http://www.ecb.europa.eu/stats/eurofxref/eurofxref.zip')
+        return c.convert(float(size.price or 0), 'EUR', 'USD') or None
+
+    def _get_monthly_price(self, location, plan, size):
+        """Translates a monthly cost value for a given adapter to a ServerSpec value."""
+
+        c = CurrencyConverter('http://www.ecb.europa.eu/stats/eurofxref/eurofxref.zip')
+        return c.convert(float(size.extra.get('monthly', 0)), 'EUR', 'USD') or None
 
     # Internal overrides for /key endpoints
     def _create_key(self, driver, key):
