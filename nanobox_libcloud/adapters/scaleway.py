@@ -141,7 +141,7 @@ class Scaleway(RebootMixin, Adapter):
 
         location = self._find_location(driver, data['region'])
         size = self._find_size(driver, data['size'])
-        image = self._find_image(driver, data['region'],
+        image = self._find_image(driver, data['region'], size,
                                  'Ubuntu Xenial (16.04 latest)')
 
         return {
@@ -156,9 +156,9 @@ class Scaleway(RebootMixin, Adapter):
         return '%s::%s' % (node.extra['region'], node.id)
 
     # Misc internal overrides
-    def _find_image(self, driver, region, id):
+    def _find_image(self, driver, region, size, id):
         for image in driver.list_images(region):
-            if image.name == id and image.extra['arch'] == 'x86_64':
+            if image.name == id and image.extra['arch'] == size.extra['arch']:
                 return image
 
     def _find_server(self, driver, id):
