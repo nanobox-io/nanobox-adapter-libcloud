@@ -14,6 +14,14 @@ def overview():
     return render_template("overview.html", adapters=adapters)
 
 
+@app.route('/docs', methods=['GET'])
+def docs():
+    """Loads Swagger UI with all the supported adapters' OpenAPI Spec Files pre-loaded into the Topbar for exploration."""
+    adapters = sorted(AdapterBase.registry.keys())
+
+    return render_template("docs.html", adapters=adapters)
+
+
 @app.route('/<adapter_id>', methods=['GET'])
 def usage(adapter_id):
     """Provides usage info for a certain adapter, and how to use it, in a more specific sense."""
@@ -23,6 +31,12 @@ def usage(adapter_id):
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
     return render_template("usage.html", adapter=adapter)
+
+
+@app.route('/<adapter_id>/docs', methods=['GET'])
+def adapter_docs(adapter_id):
+    """Loads Swagger UI with a certain adapter's OpenAPI Spec File pre-loaded."""
+    return render_template("docs.html", adapters=[adapter_id])
 
 
 # Actual metadata endpoints for the Nanobox Provider Adapter API

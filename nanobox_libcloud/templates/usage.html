@@ -2,4 +2,4 @@
 
 <p>It complies with the standard Nanobox adapter API conventions. Simply set your custom provider endpoint to <span style="font-weight: bold;">{{ url_for("usage", adapter_id=adapter._get_id(), _external=True) }}</span> (this page) and let it handle the rest.</p>
 
-<p>If you'd like to verify the adapter against an OpenAPI spec, point SwaggerUI at <a href="{{ url_for('static', filename='%s.json' % (adapter._get_id())) }}">{{ url_for('static', filename='%s.json' % (adapter._get_id()), _external=True) }}</a>...</p>
+<p>If you'd like to verify the adapter against an OpenAPI spec, you can navigate to <a href="{{ url_for('adapter_docs', adapter_id=adapter._get_id()) }}">{{ url_for('adapter_docs', adapter_id=adapter._get_id(), _external=True) }}</a>...</p>
