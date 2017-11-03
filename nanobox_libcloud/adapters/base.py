@@ -199,7 +199,8 @@ class Adapter(object, metaclass=AdapterBase):
             return {"data": models.KeyInfo(
                 id=key.id if hasattr(key, 'id') else key.name,
                 name=key.name,
-                key=key.pub_key if hasattr(key, 'pub_key') else key.public_key
+                key=key.pub_key if hasattr(key, 'pub_key') else key.public_key,
+                fingerprint=key.fingerprint if hasattr(key, 'fingerprint') else None
             ).to_nanobox(), "status": 201}
 
     def do_key_delete(self, headers, id) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
@@ -209,7 +210,10 @@ class Adapter(object, metaclass=AdapterBase):
 
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
-            key = self._find_ssh_key(driver, id)
+            try:
+                key = self._find_ssh_key(driver, id)
+            except libcloud.common.exceptions.BaseHTTPError as err:
+                key = None
 
             if not key:
                 return {"error": "SSH key not found", "status": 404}

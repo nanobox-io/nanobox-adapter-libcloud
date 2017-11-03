@@ -132,18 +132,21 @@ class KeyInfo(Model):
     id = None  # type: str
     name = None  # type: str
     key = None  # type: str
+    fingerprint = None  # type: str
 
     def to_nanobox(self) -> typing.Dict[str, typing.Any]:
-        return {
+        key = {
             'id': self.id,
             'name': self.name,
-            'public_key': self.key,
         }
 
         if self.key is not None:
             key['public_key'] = self.key
         else:
             key['fingerprint'] = self.fingerprint
+
+        return key
+
 
 class ServerInfo(Model):
     """
