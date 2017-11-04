@@ -1,7 +1,15 @@
 import os
-from urllib import parse
+import re
+import time
 from decimal import Decimal
 from operator import attrgetter
+from urllib import parse
+from urllib.request import urlopen
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 import libcloud
 from nanobox_libcloud.adapters import Adapter
@@ -43,7 +51,7 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         ('accelerated_computing', 'Accelerated Computing'),
     ]
     _sizes = {}
-    _image_family = 'ubuntu-1604-lts'
+    _prices = None
 
     def __init__(self, **kwargs):
         self.generic_credentials = {
@@ -51,11 +59,6 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             'secret': os.getenv('EC2_ACCESS_KEY', ''),
             'region': self.get_default_region(),
         }
-
-        # self._disk_cost_per_gb = {
-        #     'standard': Decimal(os.getenv('EC2_MONTHLY_DISK_COST', 0)) / 30 / 24,
-        #     'ssd': Decimal(os.getenv('EC2_MONTHLY_SSD_COST', 0)) / 30 / 24
-        # }
 
     # Internal overrides for provider retrieval
     def _get_request_credentials(self, headers):
@@ -67,13 +70,6 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             "region": parse.unquote(headers.get("Region-Id",
                                                 self.get_default_region())),
         }
-
-    # def _get_user_driver(self, **auth_credentials):
-    #     """Returns a driver instance for a user with the appropriate authentication credentials set."""
-    #
-    #     auth_credentials['auth_type'] = 'SA'
-    #
-    #     return super()._get_user_driver(**auth_credentials)
 
     @classmethod
     def _get_id(cls):
@@ -173,14 +169,12 @@ class EC2(RebootMixin, RenameMixin, Adapter):
 
         return int(gb_ram * 10) + size.disk
 
-    # def _get_hourly_price(self, location, plan, size):
-    #     """Translates an hourly cost value for a given adapter to a ServerSpec value."""
-    #
-    #     base_price = super()._get_hourly_price(location, plan, size) or 0
-    #     disk_size = self._get_disk(location, plan, size)
-    #
-    #     return (base_price + float(
-    #         disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
+    def _get_hourly_price(self, location, plan, size):
+        """Translates an hourly cost value for a given adapter to a ServerSpec value."""
+
+        base_price = super()._get_hourly_price(location, plan, size) or 0
+
+        return (base_price + self._calculate_disk_cost(location, plan, size)) or None
 
     # Internal overrides for /key endpoints
     def _create_key(self, driver, key):
@@ -270,3 +264,30 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         driver.__init__(key=driver.key, secret=driver.secret,
                         token=driver.token, region=region)
         return driver
+
+    def _calculate_disk_cost(self, location, plan, size):
+        source = 'https://a0.awsstatic.com/pricing/1/ebs/pricing-ebs.js'
+        cache = '/tmp/ebs-pricing.json'
+
+        if not self._prices:
+            if os.path.isfile(cache) and os.path.getmtime(cache) > time.time() - 86400:
+                with open(cache) as json_file:
+                    self._prices = json.load(json_file)
+            else:
+                with urlopen(source) as js_file:
+                    raw = js_file.read().decode('utf-8')
+
+                json_data = json.loads(re.search(r'callback\(\n(.*)\n\);', raw)[1])
+                self._prices = {}
+
+                for region in json_data['config']['regions']:
+                    self._prices[region['region']] = \
+                        region['types'][0]['values'][0]['prices']['USD']
+
+                with open(cache, 'w') as json_file:
+                    json.dump(self._prices, json_file)
+
+        gb = self._get_disk(location, plan, size)
+        hourly = float(self._prices.get(location, 0)) / (24 * 30)
+
+        return gb * hourly
