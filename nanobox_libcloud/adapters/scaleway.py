@@ -144,6 +144,18 @@ class Scaleway(RebootMixin, Adapter):
         image = self._find_image(driver, data['region'], size,
                                  'Ubuntu Xenial (16.04 latest)')
 
+        if location is None:
+            raise libcloud.common.exceptions.exception_from_message(404,
+                  'Invalid region')
+
+        if size is None:
+            raise libcloud.common.exceptions.exception_from_message(404,
+                  'Invalid server size')
+
+        if image is None:
+            raise libcloud.common.exceptions.exception_from_message(404,
+                  'Unable to find required server image')
+
         return {
             'name': data['name'],
             'size': size,

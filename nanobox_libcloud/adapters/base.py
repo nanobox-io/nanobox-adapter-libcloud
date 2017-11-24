@@ -165,7 +165,7 @@ class Adapter(object, metaclass=AdapterBase):
             if not result:
                 return {"error": "Key created, but not found", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return {"data": {"id": result.name}, "status": 201}
 
@@ -178,7 +178,7 @@ class Adapter(object, metaclass=AdapterBase):
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             key = self._find_ssh_key(driver, id)
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             if not key:
                 return {"error": "SSH key not found", "status": 404}
@@ -204,7 +204,7 @@ class Adapter(object, metaclass=AdapterBase):
             if not self._delete_key(driver, key):
                 return {"error": "Problem deleting key", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return True
 
@@ -214,7 +214,7 @@ class Adapter(object, metaclass=AdapterBase):
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             result = driver.create_node(**self._get_create_args(data))
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return {"data": {"id": self._get_node_id(result)}, "status": 201}
 
@@ -224,7 +224,7 @@ class Adapter(object, metaclass=AdapterBase):
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             server = self._find_server(driver, id)
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
@@ -248,7 +248,7 @@ class Adapter(object, metaclass=AdapterBase):
 
             result = self._destroy_server(server)
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return True
 
@@ -445,7 +445,7 @@ class KeyInstallMixin(object):
             if not self._install_key(server, data):
                 return {"error": "Key installation failed.", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return True
 
@@ -472,7 +472,7 @@ class RebootMixin(object):
             if not server.reboot():
                 return {"error": "Reboot failed.", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return True
 
@@ -494,7 +494,7 @@ class RenameMixin(object):
             if not self._rename_server(server, data['name']):
                 return {"error": "Server rename failed.", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
-            return {"error": err.value if hasattr(err, 'value') else err, "status": 500}
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'code') else 500}
         else:
             return True
 
