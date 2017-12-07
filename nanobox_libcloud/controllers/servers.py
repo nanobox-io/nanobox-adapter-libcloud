@@ -64,7 +64,7 @@ def server_cancel(adapter_id, server_id):
 
 @app.route('/<adapter_id>/servers/<server_id>/keys', methods=['PATCH'])
 def server_install_key(adapter_id, server_id):
-    """Installes an SSH key on a server using a certain adapter, if that adapter supports key installation."""
+    """Installs an SSH key on a server using a certain adapter, if that adapter supports key installation."""
     adapter = get_adapter(adapter_id)
 
     if not adapter:

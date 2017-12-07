@@ -26,11 +26,11 @@ class AdapterMeta(Model):
     id = None  # type: str
     name = None  # type: str
     server_nick_name = None  # type: str
-    default_region = None  # type: str,
-    default_size = None  # type: str,
-    default_plan = None  # type: str,
-    can_reboot = None  # type: bool,
-    can_rename = None  # type: bool,
+    default_region = None  # type: str
+    default_size = None  # type: str
+    default_plan = None  # type: str
+    can_reboot = None  # type: bool
+    can_rename = None  # type: bool
     internal_iface = None  # type: str
     external_iface = None  # type: str
     ssh_user = None  # type: str
@@ -79,9 +79,11 @@ class ServerSpec(Model):
             'ram': self.ram,
             'cpu': self.cpu,
             'disk': self.disk,
-            'transfer': self.transfer,
-            'dollars_per_hr': self.dollars_per_hr,
-            'dollars_per_mo': self.dollars_per_mo,
+            'transfer': self.transfer or 'unlimited',
+            'dollars_per_hr': '%0.3f' % (self.dollars_per_hr)\
+                              if self.dollars_per_hr is not None else 'Unknown',
+            'dollars_per_mo': '%0.2f' % (self.dollars_per_mo)\
+                              if self.dollars_per_mo is not None else 'Unknown',
         }
 
 
@@ -132,6 +134,10 @@ class KeyInfo(Model):
             'public_key': self.key,
         }
 
+        if self.key is not None:
+            key['public_key'] = self.key
+        else:
+            key['fingerprint'] = self.fingerprint
 
 class ServerInfo(Model):
     """

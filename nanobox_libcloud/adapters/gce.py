@@ -162,11 +162,12 @@ class Gce(RebootMixin, Adapter):
     def _get_hourly_price(self, location, plan, size):
         """Translates an hourly cost value for a given adapter to a ServerSpec value."""
 
-        base_price = super()._get_hourly_price(location, plan, size) or 0
-        disk_size = self._get_disk(location, plan, size)
+        base_price = super()._get_hourly_price(location, plan, size)
+        disk_price = float(self._get_disk(location, plan, size) * self._disk_cost_per_gb[
+            'ssd' if plan.endswith('-ssd') else 'standard'
+        ])
 
-        return (base_price + float(
-            disk_size * self._disk_cost_per_gb['ssd' if plan.endswith('-ssd') else 'standard'])) or None
+        return (base_price + disk_price) if base_price else None
 
     # Internal overrides for /server endpoints
     def _get_create_args(self, data):
