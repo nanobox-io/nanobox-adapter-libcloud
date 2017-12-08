@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import re
 import time
@@ -25,6 +26,21 @@ class EC2(RebootMixin, RenameMixin, Adapter):
     id = "aws"
     name = "Amazon Web Services EC2 (Beta)"
     server_nick_name = "EC2 instance"
+    configuration_fields = [
+        {
+            'key': 'vpc_id',
+            'label': 'VPC ID',
+            'description': 'The ID of a VPC to put servers in.',
+            'rebuild': True,
+        },
+        {
+            'key': 'az_distribution',
+            'label': 'Availability Zone Distribution',
+            'description': 'The number of AZs to distribute instances across.',
+            'default': '1',
+            'rebuild': True,
+        },
+    ]
 
     # Provider-wide server properties
     server_internal_iface = 'eth0'
@@ -187,42 +203,41 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         # Reconnect to the correct region before continuing
         driver = self._get_user_driver()
         size = self._find_size(driver, data['size'])
+        # TODO: Detect hypervisor supported by current size, and select image accordingly
         image = self._find_image(driver,
             'ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*')
-        sec_groups = ['Nanobox']
-        extant_groups = [group for group in driver.ex_list_security_groups()
-                         if group in sec_groups]
-        if len(extant_groups) < len(sec_groups):
-            for group in sec_groups:
-                if group not in extant_groups:
-                    sgid = driver.ex_create_security_group(group,
-                        'Security group policy created by Nanobox.')['group_id']
-                    if group == 'Nanobox':
-                        sgobj = driver.ex_get_security_groups(group_ids=[sgid])[0]
-                        for proto, low, high in [
-                                                    # ('tcp', 0, 65535),
-                                                    # ('udp', 0, 65535),
-                                                    # ('icmp', -1, -1)
-                                                    (-1, -1, -1)
-                                                ]:
-                            driver.ex_authorize_security_group_ingress(
-                                sgid, low, high, ['0.0.0.0/0'], None, proto)
-                            try:
-                                driver.ex_authorize_security_group_egress(
-                                    sgid, low, high, ['0.0.0.0/0'], None, proto)
-                            except libcloud.common.exceptions.BaseHTTPError as e:
-                                if 'InvalidPermission.Duplicate' not in e.message:
-                                    raise e
 
-        return {
+        segments = data['name'].split('.')
+        instance = int(segments[-1] if len(segments) > 3 else segments[-2])
+        az_distribution = max(min(int(data.get('config', {}).get('az_distribution', 1)),
+            len(driver.list_locations())), 1)
+        az = driver.list_locations()[(instance - 1) % az_distribution]
+
+        vpc_id = data.get('config', {}).get('vpc_id')
+        netlist = driver.ex_list_networks() if vpc_id is None \
+             else driver.ex_list_networks(network_ids=[vpc_id])
+        vpcs = self._find_usable_resources(netlist)
+        vpc_id = vpcs[0].id if len(vpcs) > 0 else None
+        if vpc_id is None:
+            vpc = driver.ex_create_network('10.10.0.0/16', 'Nanobox')
+            if vpc:
+                driver.ex_create_tags(vpc, {'Nanobox': 'true'})
+                vpc_id = vpc.id
+
+        subnet = self._get_subnet(vpc_id, az)
+        sec_groups = ['Nanobox']
+
+        response = {
             "name": data['name'],
             "size": size,
             "image": image,
+            "location": az,
             "ex_keyname": data['ssh_key'],
             "ex_security_groups": sec_groups,
             "ex_metadata": {
                 'Nanobox': 'true',
                 'Nanobox-Name': data['name'],
+                'AZ-Distribution': az_distribution,
             },
             "ex_blockdevicemappings": [
                 {
@@ -234,9 +249,28 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                     }
                 }
             ],
+            "ex_subnet": subnet,
             # "ex_assign_public_ip": True,
             "ex_terminate_on_shutdown": False,
         }
+
+        extant_groups = self._find_usable_resources(driver.ex_list_security_groups())
+
+        for group in sec_groups:
+            if group not in extant_groups:
+                sg = driver.ex_create_security_group(group,
+                    'Security group policy created by Nanobox.')
+                driver.ex_create_tags(sg, {'Nanobox': 'true'})
+                if group == 'Nanobox':
+                    self._add_rules_to_sec_group(driver, sg['group_id'])
+
+        return response
+
+    def _get_server_config(self, server):
+        return [
+            {'key': 'az_distribution', 'value': self._config_get_az_dist(server)},
+            {'key': 'vpc_id', 'value': self._config_get_vpc(server)},
+        ]
 
     # Misc Internal Overrides
     def _find_image(self, driver, id):
@@ -250,6 +284,9 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             return driver.get_key_pair(id)
         except libcloud.compute.types.KeyPairDoesNotExistError:
             pass
+
+    def _find_usable_servers(self, driver):
+        return self._find_usable_resources(driver.list_nodes())
 
     def _rename_server(self, server, name):
         """Renames server."""
@@ -291,3 +328,80 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         hourly = float(self._prices.get(location, 0)) / (24 * 30)
 
         return gb * hourly
+
+    def _add_rules_to_sec_group(self, driver, sgid):
+        sgobj = driver.ex_get_security_groups(group_ids=[sgid])[0]
+        # Try to create a single rule that allows everything,
+        # then fall back to one for each protocol
+        for proto, low, high, skip_others in [
+                    (-1, -1, -1, True),
+                    ('tcp', 0, 65535, False),
+                    ('udp', 0, 65535, False),
+                    ('icmp', -1, -1, False)
+                ]:
+            try:
+                driver.ex_authorize_security_group_ingress(
+                    sgid, low, high, ['0.0.0.0/0'], None, proto)
+                try:
+                    driver.ex_authorize_security_group_egress(
+                        sgid, low, high, ['0.0.0.0/0'], None, proto)
+                except libcloud.common.exceptions.BaseHTTPError as e:
+                    if 'InvalidPermission.Duplicate' not in e.message:
+                        raise e
+                if skip_others:
+                    break
+            except libcloud.common.exceptions.BaseHTTPError as e:
+                if 'InvalidPermission.Malformed' not in e.message and \
+                   'UnknownParameter' not in e.message:
+                    raise e
+
+    def _get_subnet(self, vpc_id, az):
+        if vpc_id is None or az is None:
+            return None
+
+        driver = self._get_user_driver()
+
+        vpcs = self._find_usable_resources(
+            driver.ex_list_networks(network_ids=[vpc_id])
+        )
+
+        if len(vpcs) <= 0:
+            return None
+
+        subnets = self._find_usable_resources(
+            driver.ex_list_subnets(filters={
+                'vpc-id': vpc_id,
+                'availabilityZone': az,
+            })
+        )
+
+        if len(subnets) > 0:
+            return subnets[0]
+
+        nets = list(ipaddress.ip_network(vpcs[0].cidr_block).subnets(new_prefix=24))
+        cidr = str(nets[ord(az[-1]) % len(nets)])
+        subnet = driver.ex_create_subnet(vpc_id, cidr, az, 'Nanobox-%s' % (az))
+        if subnet and driver.ex_create_tags(subnet, {'Nanobox': 'true'}):
+            subnet.extras['tags']['Nanobox'] = 'true'
+
+        return subnet
+
+    def _config_get_vpc(self, server):
+        return server.extra.get('vpc_id')
+
+    def _config_get_az_dist(self, server):
+        return server.extra.get('tags', {}).get('AZ-Distribution', 1)
+
+    def _find_usable_resources(self, all_resources):
+        our_resources = [resource for resource in all_resources
+                         if 'Nanobox' in resource.extra.get('tags', {}) and
+                         resource.extra['tags']['Nanobox'] == 'true']
+
+        our_ids = [resource.id for resource in our_resources]
+
+        allowed_resources = [resource for resource in all_resources
+                             if ('Nanobox' not in resource.extra.get('tags', {}) or
+                                 resource.extra['tags']['Nanobox'] != 'false') and
+                             resource.id not in our_ids]
+
+        return our_resources + allowed_resources
