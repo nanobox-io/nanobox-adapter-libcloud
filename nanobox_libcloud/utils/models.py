@@ -19,6 +19,40 @@ class Model(object):
         raise NotImplementedError()
 
 
+class AdapterConfig(Model):
+    """
+    Data model representing a configuration field of an adapter.
+    """
+    key = None  # type: str
+    label = None  # type: str
+    description = None  # type: str
+    default = None  # type: str
+    rebuild = None  # type: bool
+    type = None  # type: str
+    values = None  # type: typing.Dict[str, typing.Any]
+
+    def to_nanobox(self) -> typing.Dict[str, typing.Any]:
+        field = {
+            'key': self.key,
+            'label': self.label,
+            'description': self.description,
+        }
+
+        if self.default is not None:
+            field['default'] = self.default
+
+        if self.rebuild is not None:
+            field['rebuild'] = self.rebuild
+
+        if self.type is not None:
+            field['type'] = self.type
+
+        if self.values is not None:
+            field['values'] = self.values
+
+        return field
+
+
 class AdapterMeta(Model):
     """
     Data model representing the metadata of an adapter.
@@ -39,6 +73,7 @@ class AdapterMeta(Model):
     bootstrap_script = None  # type: str
     bootstrap_timeout = None  # type: int
     auth_credential_fields = None  # type: typing.Tuple[str, str]
+    config_fields = None  # type: typing.Dict[str, typing.Any]
     auth_instructions = None  # type: str
 
     def to_nanobox(self) -> typing.Dict[str, typing.Any]:
@@ -61,6 +96,7 @@ class AdapterMeta(Model):
                                  if self.bootstrap_timeout is not None else 300,
             'credential_fields': [{'key': field[0], 'label': field[1]}
                                   for field in self.auth_credential_fields],
+            'config_fields': [field.to_nanobox() for field in self.config_fields],
             'instructions': self.auth_instructions,
         }
 
@@ -157,6 +193,7 @@ class ServerInfo(Model):
     name = None  # type: str
     external_ip = None  # type: str
     internal_ip = None  # type: str
+    config = None  # type: typing.List[typing.Dict[str, typing.Any]]
 
     def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         return {
@@ -165,4 +202,5 @@ class ServerInfo(Model):
             'name': self.name,
             'external_ip': self.external_ip,
             'internal_ip': self.internal_ip,
+            'config': self.config,
         }

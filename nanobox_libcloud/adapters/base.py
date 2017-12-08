@@ -46,16 +46,19 @@ class AdapterBase(type):
 
 class Adapter(object, metaclass=AdapterBase):
     """
-    Base class for Nanobox libcloud adapters. Implements basic functionality that should work for most libcloud drivers
-    which can be overridden by subclasses for specific drivers.
+    Base class for Nanobox libcloud adapters. Implements basic functionality
+    that should work for most libcloud drivers which can be overridden by
+    subclasses for specific drivers.
 
-    If subclasses are placed in the same package as this module they will automatically be discovered.
+    If subclasses are placed in the same package as this module they will
+    automatically be discovered.
     """
 
     # Adapter metadata
     id = None  # type: str
     name = ''  # type: str
     server_nick_name = 'server'  # type: str
+    configuration_fields = []  # type: typing.Dict[str, typing.Any]
 
     # Provider-wide server properties
     server_internal_iface = 'eth1'  # type: str
@@ -94,6 +97,15 @@ class Adapter(object, metaclass=AdapterBase):
             bootstrap_script=self.server_bootstrap_script,
             bootstrap_timeout=self.server_bootstrap_timeout,
             auth_credential_fields=self.auth_credential_fields,
+            config_fields=[models.AdapterConfig(
+                key=field.get('key'),
+                label=field.get('label'),
+                description=field.get('description'),
+                type=field.get('type'),
+                values=field.get('values'),
+                default=field.get('default'),
+                rebuild=field.get('rebuild'),
+            ) for field in self.configuration_fields],
             auth_instructions=self.auth_instructions,
         ).to_nanobox()
 
@@ -129,12 +141,11 @@ class Adapter(object, metaclass=AdapterBase):
                 ).to_nanobox())
         except libcloud.common.exceptions.BaseHTTPError as err:
             return err
-        except libcloud.common.types.LibcloudError:
-            # TODO: Get cached data...
+        except libcloud.common.types.LibcloudError as err:
             if os.getenv('APP_NAME', 'dev') == 'dev':
-                raise
+                raise err
             else:
-                pass
+                return err
 
         return catalog
 
@@ -264,7 +275,8 @@ class Adapter(object, metaclass=AdapterBase):
                 status=server.state,
                 name=server.name,
                 external_ip=self._get_ext_ip(server),
-                internal_ip=self._get_int_ip(server)
+                internal_ip=self._get_int_ip(server),
+                config=self._get_server_config(server)
             ).to_nanobox(), "status": 201}
 
     def do_server_cancel(self, headers, id) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
@@ -281,6 +293,21 @@ class Adapter(object, metaclass=AdapterBase):
             return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'message') else 500}
         else:
             return True
+
+    def do_server_config(self, headers, id, config) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
+        """Reconfigure a server with a certain provider."""
+        try:
+            driver = self._get_user_driver(**self._get_request_credentials(headers))
+            server = self._find_server(driver, id)
+
+            if not server:
+                return {"error": self.server_nick_name + " not found", "status": 404}
+
+            result = self._configure_server(server, config)
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
+            return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'message') else 500}
+        else:
+            return result
 
     # Provider retrieval
     def _get_driver_class(self) -> typing.Type[NodeDriver]:
@@ -428,8 +455,17 @@ class Adapter(object, metaclass=AdapterBase):
         """Returns the internal IP of a server for this adapter."""
         return server.private_ips[0] if len(server.private_ips) > 0 else None
 
+    def _get_server_config(self, server) -> typing.List[typing.Dict[str, typing.Any]]:
+        """Returns the provider-specific configuration of a server for this adapter."""
+        return []
+
     def _destroy_server(self, server) -> bool:
         return server.destroy()
+
+    @classmethod
+    def _configure_server(cls, server, config) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
+        """Applies a new configuration to a server using this adapter."""
+        raise NotImplementedError()
 
     # Misc internal methods
     def _find_location(self, driver, id) -> typing.Optional[NodeLocation]:
