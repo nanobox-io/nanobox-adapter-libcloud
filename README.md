@@ -24,6 +24,20 @@ _Please keep this list sorted alphabetically by provider name to help with findi
 -   `AZR_AUTHENTICATION_KEY`\*
 -   `AZR_CLOUD_ENVIRONMENT`\* (optional)
 
+### OVH
+-   `OVH_APP_KEY`\*
+-   `OVH_APP_SECRET`\*
+-   `OVH_CONSUMER_KEY`\*
+-   `OVH_PROJECT_ID`\*
+-   `OVH_APP_REGION`\*
+
+### Packet
+-   `PKT_API_KEY`\*
+
+### Scaleway
+-   `SCALEWAY_ACCESS_KEY`\*
+-   `SCALEWAY_API_TOKEN`\*
+
 ### Vultr
 -   `VULTR_API_KEY`\*
 
