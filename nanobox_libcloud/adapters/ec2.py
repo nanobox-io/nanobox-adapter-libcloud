@@ -87,6 +87,14 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                                                 self.get_default_region())),
         }
 
+    def _get_user_driver(self, **auth_credentials):
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+        driver = super()._get_user_driver(**auth_credentials)
+
+        driver.list_key_pairs()
+
+        return driver
+
     @classmethod
     def _get_id(cls):
         return 'ec2'
@@ -203,9 +211,9 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         # Reconnect to the correct region before continuing
         driver = self._get_user_driver()
         size = self._find_size(driver, data['size'])
-        # TODO: Detect hypervisor supported by current size, and select image accordingly
         image = self._find_image(driver,
-            'ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*')
+            'ubuntu/images/%s-ssd/ubuntu-xenial-16.04-amd64-server-*' %
+            ('hvm' if size.extra['hvm'] else 'ebs'))
 
         segments = data['name'].split('.')
         instance = int(segments[-1] if len(segments) > 3 else segments[-2])
@@ -224,8 +232,26 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                 driver.ex_create_tags(vpc, {'Nanobox': 'true'})
                 vpc_id = vpc.id
 
-        subnet = self._get_subnet(vpc_id, az)
-        sec_groups = ['Nanobox']
+        subnet = self._get_subnet(vpc_id, az.name)
+
+        group_names = ['Nanobox']
+        extant_groups = [group.name for group in \
+                         self._find_usable_resources(driver.ex_get_security_groups())]
+
+        sec_groups = []
+        for group in group_names:
+            if group not in extant_groups:
+                sg = driver.ex_create_security_group(group,
+                    'Security group policy created by Nanobox.')
+                driver.ex_create_tags(sg, {'Nanobox': 'true'})
+                if group == 'Nanobox':
+                    self._add_rules_to_sec_group(driver, sg['group_id'])
+            else:
+                sg = self._find_usable_resources(driver.ex_get_security_groups(
+                    group_names = [group]
+                ))[0]
+
+            sec_groups.append(sg.id)
 
         response = {
             "name": data['name'],
@@ -233,7 +259,7 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             "image": image,
             "location": az,
             "ex_keyname": data['ssh_key'],
-            "ex_security_groups": sec_groups,
+            "ex_security_group_ids": sec_groups,
             "ex_metadata": {
                 'Nanobox': 'true',
                 'Nanobox-Name': data['name'],
@@ -254,16 +280,6 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             "ex_terminate_on_shutdown": False,
         }
 
-        extant_groups = self._find_usable_resources(driver.ex_list_security_groups())
-
-        for group in sec_groups:
-            if group not in extant_groups:
-                sg = driver.ex_create_security_group(group,
-                    'Security group policy created by Nanobox.')
-                driver.ex_create_tags(sg, {'Nanobox': 'true'})
-                if group == 'Nanobox':
-                    self._add_rules_to_sec_group(driver, sg['group_id'])
-
         return response
 
     def _get_server_config(self, server):
@@ -274,10 +290,13 @@ class EC2(RebootMixin, RenameMixin, Adapter):
 
     # Misc Internal Overrides
     def _find_image(self, driver, id):
-        return sorted(driver.list_images(ex_filters={
+        return sorted(self._find_usable_resources(driver.list_images(ex_filters={
                 'architecture': 'x86_64',
+                'image-type': 'machine',
                 'name': id,
-            }), key=attrgetter('name'), reverse=True)[0]
+                'root-device-type': 'ebs',
+                'state': 'available',
+            })), key=attrgetter('name'), reverse=True)[0]
 
     def _find_ssh_key(self, driver, id, public_key=None):
         try:
@@ -355,8 +374,8 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                    'UnknownParameter' not in e.message:
                     raise e
 
-    def _get_subnet(self, vpc_id, az):
-        if vpc_id is None or az is None:
+    def _get_subnet(self, vpc_id=None, az_id=None):
+        if vpc_id is None or az_id is None:
             return None
 
         driver = self._get_user_driver()
@@ -371,7 +390,7 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         subnets = self._find_usable_resources(
             driver.ex_list_subnets(filters={
                 'vpc-id': vpc_id,
-                'availabilityZone': az,
+                'availabilityZone': az_id,
             })
         )
 
@@ -379,8 +398,8 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             return subnets[0]
 
         nets = list(ipaddress.ip_network(vpcs[0].cidr_block).subnets(new_prefix=24))
-        cidr = str(nets[ord(az[-1]) % len(nets)])
-        subnet = driver.ex_create_subnet(vpc_id, cidr, az, 'Nanobox-%s' % (az))
+        cidr = str(nets[ord(az_id[-1]) % len(nets)])
+        subnet = driver.ex_create_subnet(vpc_id, cidr, az_id, 'Nanobox-%s' % (az_id))
         if subnet and driver.ex_create_tags(subnet, {'Nanobox': 'true'}):
             subnet.extras['tags']['Nanobox'] = 'true'
 
