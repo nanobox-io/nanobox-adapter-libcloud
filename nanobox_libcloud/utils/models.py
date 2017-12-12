@@ -66,6 +66,7 @@ class ServerSpec(Model):
     Data model representing a server specification that can be ordered.
     """
     id = None  # type: str
+    name = None  # type: str
     ram = None  # type: int
     cpu = None  # type: int
     disk = None  # type: int
@@ -76,6 +77,7 @@ class ServerSpec(Model):
     def to_nanobox(self) -> typing.Dict[str, typing.Any]:
         return {
             'id': self.id,
+            'name': self.name,
             'ram': self.ram,
             'cpu': self.cpu,
             'disk': self.disk,

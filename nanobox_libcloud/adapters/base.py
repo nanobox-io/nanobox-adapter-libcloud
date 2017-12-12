@@ -111,6 +111,7 @@ class Adapter(object, metaclass=AdapterBase):
                             specs = [
                                 models.ServerSpec(
                                     id = self._get_size_id(location, plan_id, size),
+                                    name = self._get_size_name(location, plan_id, size),
                                     ram = self._get_ram(location, plan_id, size),
                                     cpu = self._get_cpu(location, plan_id, size),
                                     disk = self._get_disk(location, plan_id, size),
@@ -257,6 +258,11 @@ class Adapter(object, metaclass=AdapterBase):
         """Returns the libcloud driver class for the id of this adapter."""
         return libcloud.get_driver(libcloud.DriverType.COMPUTE, self._get_id())
 
+    @classmethod
+    def _get_request_credentials(cls, headers) -> typing.Dict[str, str]:
+        """Extracts credentials from request headers."""
+        raise NotImplementedError()
+
     def _get_user_driver(self, **auth_credentials) -> NodeDriver:
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
         if self._user_driver is None:
@@ -335,6 +341,10 @@ class Adapter(object, metaclass=AdapterBase):
         """Translates a server size ID for a given adapter to a ServerSpec value."""
         return size.id
 
+    def _get_size_name(self, location, plan, size) -> str:
+        """Translates a server size name for a given adapter to a ServerSpec value."""
+        return size.name
+
     def _get_ram(self, location, plan, size) -> int:
         """Translates a RAM size value for a given adapter to a ServerSpec value."""
         return int(size.ram)
@@ -375,11 +385,6 @@ class Adapter(object, metaclass=AdapterBase):
     @classmethod
     def _get_create_args(cls, data) -> typing.Dict[str, typing.Any]:
         """Returns the args used to create a server for this adapter."""
-        raise NotImplementedError()
-
-    @classmethod
-    def _get_request_credentials(cls, headers) -> typing.Dict[str, str]:
-        """Extracts credentials from request headers."""
         raise NotImplementedError()
 
     def _get_node_id(self, node) -> str:
