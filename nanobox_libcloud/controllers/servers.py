@@ -13,8 +13,9 @@ def server_create(adapter_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_server_create(request.headers, request.json)
 
@@ -32,8 +33,9 @@ def server_query(adapter_id, server_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_server_query(request.headers, server_id)
 
@@ -51,8 +53,9 @@ def server_cancel(adapter_id, server_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_server_cancel(request.headers, server_id)
 
@@ -73,8 +76,9 @@ def server_install_key(adapter_id, server_id):
     if not adapter.can_install_key():
         return output.failure("This adapter doesn't support installing keys on servers.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_install_key(request.headers, server_id, request.json)
 
@@ -95,8 +99,9 @@ def server_reboot(adapter_id, server_id):
     if not adapter.can_reboot():
         return output.failure("This adapter doesn't support rebooting servers.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_server_reboot(request.headers, server_id)
 
@@ -117,8 +122,9 @@ def server_rename(adapter_id, server_id):
     if not adapter.can_rename():
         return output.failure("This adapter doesn't support renaming servers.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_server_rename(request.headers, server_id, request.json)
 

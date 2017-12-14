@@ -7,6 +7,7 @@ from base64 import standard_b64encode as b64enc
 from decimal import Decimal
 from time import sleep
 import redis
+import requests
 
 from flask import after_this_request
 from celery.signals import task_postrun
@@ -59,7 +60,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
     def __init__(self, **kwargs):
         self.generic_credentials = {
             'subscription_id': os.getenv('AZC_SUB_ID', ''),
-            'key': os.getenv('AZC_KEY', '')
+            'key': parse.unquote(os.getenv('AZC_KEY', '')).replace('\\n', '\n')
         }
 
     def do_server_create(self, headers, data):
@@ -105,6 +106,8 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
 
         try:
             self._user_driver.list_locations()
+        except requests.exceptions.SSLError:
+            raise libcloud.common.types.LibcloudError('Invalid Credentials')
         except AttributeError:
             pass
 

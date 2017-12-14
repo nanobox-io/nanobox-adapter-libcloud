@@ -146,7 +146,7 @@ class Adapter(object, metaclass=AdapterBase):
         """Verify the account credentials."""
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, ConnectionError, KeyError, ValueError) as e:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, libcloud.compute.types.InvalidCredsError, ConnectionError, KeyError, ValueError) as e:
             return e
         else:
             return True
