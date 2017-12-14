@@ -81,14 +81,14 @@ class Ovh(Adapter):
             "ex_datacenter": headers.get("Auth-App-Region", '')
         }
 
-    # def _get_user_driver(self, **auth_credentials):
-    #     """Returns a driver instance for a user with the appropriate authentication credentials set."""
-    #
-    #     driver = super()._get_user_driver(**auth_credentials)
-    #
-    #     driver.list_key_pairs()
-    #
-    #     return driver
+    def _get_user_driver(self, **auth_credentials):
+        """Returns a driver instance for a user with the appropriate authentication credentials set."""
+
+        driver = super()._get_user_driver(**auth_credentials)
+
+        driver.list_nodes()
+
+        return driver
 
     @classmethod
     def _get_id(cls):

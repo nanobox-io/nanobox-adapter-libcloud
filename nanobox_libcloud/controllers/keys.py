@@ -13,8 +13,9 @@ def key_create(adapter_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_key_create(request.headers, request.json)
 
@@ -32,8 +33,9 @@ def key_query(adapter_id, key_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_key_query(request.headers, key_id)
 
@@ -51,8 +53,9 @@ def key_delete(adapter_id, key_id):
     if not adapter:
         return output.failure("That adapter doesn't (yet) exist. Please check the adapter name and try again.", 501)
 
-    if not adapter.do_verify(request.headers):
-        return output.failure("Credential verification failed. Please check your credentials and try again.", 401)
+    result = adapter.do_verify(request.headers)
+    if result is not True:
+        return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
     result = adapter.do_key_delete(request.headers, key_id)
 
