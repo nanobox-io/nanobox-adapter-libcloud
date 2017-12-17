@@ -17,7 +17,7 @@ def server_create(adapter_id):
     if result is not True:
         return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
-    result = adapter.do_server_create(request.headers, request.json)
+    result = adapter.do_server_create(request.headers, request.get_json())
 
     if 'error' in result:
         return output.failure(result['error'], result['status'])
@@ -80,7 +80,7 @@ def server_install_key(adapter_id, server_id):
     if result is not True:
         return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
-    result = adapter.do_install_key(request.headers, server_id, request.json)
+    result = adapter.do_install_key(request.headers, server_id, request.get_json())
 
     if isinstance(result, dict) and 'error' in result:
         return output.failure(result['error'], result['status'])
@@ -126,7 +126,7 @@ def server_rename(adapter_id, server_id):
     if result is not True:
         return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
-    result = adapter.do_server_rename(request.headers, server_id, request.json)
+    result = adapter.do_server_rename(request.headers, server_id, request.get_json())
 
     if isinstance(result, dict) and 'error' in result:
         return output.failure(result['error'], result['status'])

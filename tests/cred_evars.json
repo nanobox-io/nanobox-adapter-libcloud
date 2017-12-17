@@ -1,0 +1,36 @@
+{
+	"azure": {
+		"Auth-Subscription-Id": "AZC_SUB_ID",
+		"Auth-Key-File": "AZC_KEY"
+	},
+	"azure_arm": {
+		"Auth-Subscription-Id": "AZR_SUBSCRIPTION_ID",
+		"Auth-Tenant-Id": "AZR_TENANT_ID",
+		"Auth-Application-Id": "AZR_APPLICATION_ID",
+		"Auth-Authentication-Key": "AZR_AUTHENTICATION_KEY",
+		"Auth-Cloud-Environment": "AZR_CLOUD_ENVIRONMENT"
+	},
+	"gce": {
+		"Auth-Service-Email": "GCE_SERVICE_EMAIL",
+		"Auth-Service-Key": "GCE_SERVICE_KEY",
+		"Auth-Project-Id": "GCE_PROJECT_ID"
+	},
+	"ovh": {
+		"Auth-App-Key": "OVH_APP_KEY",
+		"Auth-App-Secret": "OVH_APP_SECRET",
+		"Auth-Consumer-Key": "OVH_CONSUMER_KEY",
+		"Auth-Project-Id": "OVH_PROJECT_ID",
+		"Auth-App-Region": "OVH_APP_REGION"
+	},
+	"packet": {
+		"Auth-Api-Key": "PKT_API_KEY",
+		"Auth-Project-Id": "PKT_PROJECT_ID"
+	},
+	"scaleway": {
+		"Auth-Access-Key": "SCALEWAY_ACCESS_KEY",
+		"Auth-Api-Token": "SCALEWAY_API_TOKEN"
+	},
+	"vultr": {
+		"Auth-Api-Key": "VULTR_API_KEY"
+	}
+}
