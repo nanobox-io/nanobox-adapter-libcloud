@@ -156,6 +156,12 @@ class Adapter(object, metaclass=AdapterBase):
         if self.server_ssh_auth_method != 'key' or self.server_ssh_key_method != 'reference':
             return {"error": "This provider doesn't support key storage", "status": 501}
 
+        if data is None or 'id' not in data or 'key' not in data:
+            return {
+                "error": "All keys need an 'id' and 'key' property. (Got %s)" % (data),
+                "status": 400
+            }
+
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             if not self._create_key(driver, data):
@@ -163,15 +169,12 @@ class Adapter(object, metaclass=AdapterBase):
 
             result = None
             for tries in range(5):
-                for key in driver.list_key_pairs():
-                    if (key.pub_key if hasattr(key, 'pub_key') else key.public_key) == data['key']:
-                        result = key
-                        break
-                if result:
+                result = self._find_ssh_key(driver, data.get('id'), data.get('key'))
+                if result is not None:
                     break
-                sleep(1)
+                sleep(tries)
 
-            if not result:
+            if result is None:
                 return {"error": "Key created, but not found", "status": 500}
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'message') else 500}

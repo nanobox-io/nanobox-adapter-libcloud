@@ -17,7 +17,7 @@ def key_create(adapter_id):
     if result is not True:
         return output.failure("Credential verification failed. Please check your credentials and try again. (Error %s)" % (result), 401)
 
-    result = adapter.do_key_create(request.headers, request.json)
+    result = adapter.do_key_create(request.headers, request.get_json())
 
     if 'error' in result:
         return output.failure(result['error'], result['status'])
