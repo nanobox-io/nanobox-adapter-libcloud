@@ -7,7 +7,7 @@ from urllib import parse
 from decimal import Decimal
 
 import libcloud
-from libcloud.compute.base import NodeAuthSSHKey
+from libcloud.compute.base import NodeAuthSSHKey, Node
 from nanobox_libcloud import tasks
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import RebootMixin
