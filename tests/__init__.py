@@ -7,6 +7,7 @@ from flask import json
 
 
 class NanoboxLibcloudTestCase(unittest.TestCase):
+    skip_adapters = ['azure']
 
     def setUp(self):
         nanobox_libcloud.app.testing = True
@@ -19,6 +20,8 @@ class NanoboxLibcloudTestCase(unittest.TestCase):
             content = fp.read()
         creds = json.loads(content)
         self.adapters = sorted(nanobox_libcloud.adapters.base.AdapterBase.registry.keys())
+        for a in self.skip_adapters:
+            self.adapters.remove(a)
         self.creds = {adapter: {
             header: os.getenv(evar, '').replace('\n', '\\n')
             for header, evar in creds.get(adapter, {}).items()

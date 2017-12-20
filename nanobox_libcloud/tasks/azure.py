@@ -55,7 +55,8 @@ def azure_create_classic(headers, data):
             break
 
     # for low in range(32768, 61000, 1024):
-    #     logger.info('Adding ports %d through %d...' % (low, min(low + 1023, 61000)))
+    #     high = min(low + 1023, 61000)
+    #     logger.info('Adding ports %d through %d...' % (low, high))
     #
     #     node = None
     #     while node is None or 'instance_endpoints' not in node.extra:
@@ -67,11 +68,19 @@ def azure_create_classic(headers, data):
     #     while True:
     #         try:
     #             driver.ex_add_instance_endpoints(node, [
-    #                 {"name": 'Ephemeral TCP Port %d' % (port), "protocol": 'TCP', "port": port, "local_port": port}
-    #                     for port in range(low, min(low + 1023, 61000) + 1)
+    #                 {
+    #                     "name": 'Ephemeral TCP Port %d' % (port),
+    #                     "protocol": 'TCP',
+    #                     "port": port,
+    #                     "local_port": port
+    #                 } for port in range(low, high + 1)
     #             ] + [
-    #                 {"name": 'Ephemeral UDP Port %d' % (port), "protocol": 'UDP', "port": port, "local_port": port}
-    #                     for port in range(low, min(low + 1023, 61000) + 1)
+    #                 {
+    #                     "name": 'Ephemeral UDP Port %d' % (port),
+    #                     "protocol": 'UDP',
+    #                     "port": port,
+    #                     "local_port": port
+    #                 } for port in range(low, high + 1)
     #             ], 'production')
     #         except AttributeError:
     #             pass

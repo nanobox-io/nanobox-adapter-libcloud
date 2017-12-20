@@ -43,7 +43,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
         ["Subscription-Id", "Subscription ID"],
         ["Key-File", "Certificate"]
     ]
-    auth_instructions = ('Using Azure CLassic is fairly complex. First, create a '
+    auth_instructions = ('Using Azure Classic is fairly complex. First, create a '
         'self-signed certificate. Then, follow the instructions '
         '<a href="https://docs.microsoft.com/en-us/azure/azure-api-management-certs">here</a> '
         'to add the certificate to your account. Finally, enter your '
@@ -65,6 +65,15 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
 
     def do_server_create(self, headers, data):
         """Create a server with a certain provider."""
+        if data is None or 'name' not in data\
+                        or 'region' not in data\
+                        or 'size' not in data:
+            return {
+                "error": ("All servers need a 'name', 'region', and 'size' "
+                          "property. (Got %s)") % (data),
+                "status": 400
+            }
+
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
@@ -269,7 +278,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
         server.driver._connect_and_run_deployment_script(
             task = ScriptDeployment('echo "%s %s" >> ~/.ssh/authorized_keys' % (key_data['key'], key_data['id'])),
             node = server,
-            ssh_hostname = server.public_ips[0],
+            ssh_hostname = server.public_ips[0] if len(server.public_ips) > 0 else None,
             ssh_port = 22,
             ssh_username = self.server_ssh_user,
             ssh_password = self._get_password(server),

@@ -7,6 +7,7 @@ from operator import attrgetter
 
 import libcloud
 from libcloud.compute.base import NodeDriver, NodeLocation, NodeImage, NodeSize, Node
+from libcloud.compute.types import NodeState
 from requests.exceptions import ConnectionError
 
 from nanobox_libcloud.utils import models
@@ -503,12 +504,21 @@ class KeyInstallMixin(object):
 
     def do_install_key(self, headers, id, data) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
         """Install an SSH key on a server with a certain provider."""
+        if data is None or 'key' not in data or 'id' not in data:
+            return {
+                "error": ("All keys need an 'id' and 'key' property. (Got %s)") % (data),
+                "status": 400
+            }
+
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             server = self._find_server(driver, id)
 
             if not server:
                 return {"error": self.server_nick_name + " not found", "status": 404}
+
+            if server.state != NodeState.RUNNING:
+                return {"error": self.server_nick_name + " not ready", "status": 409}
 
             if not self._install_key(server, data):
                 return {"error": "Key installation failed.", "status": 500}

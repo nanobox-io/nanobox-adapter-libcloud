@@ -162,7 +162,7 @@ class Vultr(RebootMixin, Adapter):
             "size": size,
             "image": image,
             "location": location,
-            "ex_ssh_key_ids": [ssh_key.id]
+            "ex_ssh_key_ids": [ssh_key.id] if ssh_key is not None else []
         }
 
     def _get_int_ip(self, server):
