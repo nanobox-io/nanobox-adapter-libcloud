@@ -102,11 +102,12 @@ class AzureARM(RebootMixin, Adapter):
     def _get_user_driver(self, **auth_credentials):
         """Returns a driver instance for a user with the appropriate authentication credentials set."""
 
-        driver = super()._get_user_driver(**auth_credentials)
-
-        driver.list_nodes()
-
-        return driver
+        if self._user_driver is not None:
+            return self._user_driver
+        else:
+            driver = super()._get_user_driver(**auth_credentials)
+            driver.list_locations()
+            return driver
 
     @classmethod
     def _get_id(cls):
