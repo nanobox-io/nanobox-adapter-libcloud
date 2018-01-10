@@ -9,10 +9,14 @@ run.config:
 web.main:
   start:
     flask: gunicorn -c /app/etc/gunicorn.py nanobox_libcloud:app
+  log_watch:
+    libcloud: libcloud.log
 
 worker.celery:
   start:
     celery: celery -A nanobox_libcloud.celery worker -E -l info
+  log_watch:
+    libcloud: libcloud.log
 
 data.redis:
   image: nanobox/redis:4.0
