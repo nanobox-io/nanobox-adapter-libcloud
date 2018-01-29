@@ -99,7 +99,7 @@ class Scaleway(RebootMixin, Adapter):
             if plan not in self._sizes:
                 self._sizes[plan] = []
 
-            if size.extra['arch'] not in ['arm']:
+            if size.extra['arch'] not in ['arm', 'arm64']:
                 self._sizes[plan].append(size)
 
         return self._plans

@@ -211,6 +211,23 @@ class Adapter(object, metaclass=AdapterBase):
 
     def do_server_create(self, headers, data) -> typing.Dict[str, typing.Any]:
         """Create a server with a certain provider."""
+        if data is None or 'name' not in data\
+                        or 'region' not in data\
+                        or 'size' not in data:
+            return {
+                "error": ("All servers need a 'name', 'region', and 'size' "
+                          "property. (Got %s)") % (data),
+                "status": 400
+            }
+
+        if self.server_ssh_auth_method == 'key'\
+                and self.server_ssh_key_method == 'object'\
+                and 'ssh_key' not in data:
+            return {
+                "error": "You must provide an 'ssh_key' property. (Got %s)" % (data),
+                "status": 400
+            }
+
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             result = driver.create_node(**self._get_create_args(data))
@@ -498,6 +515,12 @@ class RenameMixin(object):
 
     def do_server_rename(self, headers, id, data) -> typing.Union[bool, typing.Dict[str, typing.Any]]:
         """Rename a server with a certain provider."""
+        if data is None or 'name' not in data:
+            return {
+                "error": ("A 'name' property is required for rename. (Got %s)") % (data),
+                "status": 400
+            }
+
         try:
             driver = self._get_user_driver(**self._get_request_credentials(headers))
             server = self._find_server(driver, id)
