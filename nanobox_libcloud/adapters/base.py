@@ -62,6 +62,7 @@ class Adapter(object, metaclass=AdapterBase):
     server_ssh_auth_method = 'key'  # type: str
     server_ssh_key_method = 'reference'  # type: str
     server_bootstrap_script = 'https://s3.amazonaws.com/tools.nanobox.io/bootstrap/ubuntu.sh'  # type: str
+    server_bootstrap_timeout = None  # type: int
 
     # Provider auth properties
     auth_credential_fields = []  # type: typing.Tuple[str, str]
@@ -89,6 +90,7 @@ class Adapter(object, metaclass=AdapterBase):
             ssh_auth_method=self.server_ssh_auth_method,
             ssh_key_method=self.server_ssh_key_method,
             bootstrap_script=self.server_bootstrap_script,
+            bootstrap_timeout=self.server_bootstrap_timeout,
             auth_credential_fields=self.auth_credential_fields,
             auth_instructions=self.auth_instructions,
         ).to_nanobox()

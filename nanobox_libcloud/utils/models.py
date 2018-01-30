@@ -37,6 +37,7 @@ class AdapterMeta(Model):
     ssh_auth_method = None  # type: str
     ssh_key_method = None  # type: str
     bootstrap_script = None  # type: str
+    bootstrap_timeout = None  # type: int
     auth_credential_fields = None  # type: typing.Tuple[str, str]
     auth_instructions = None  # type: str
 
@@ -56,7 +57,10 @@ class AdapterMeta(Model):
             'ssh_auth_method': self.ssh_auth_method,
             'ssh_key_method': self.ssh_key_method,
             'bootstrap_script': self.bootstrap_script,
-            'credential_fields': [{'key': field[0], 'label': field[1]} for field in self.auth_credential_fields],
+            'bootstrap_timeout': self.bootstrap_timeout\
+                                 if self.bootstrap_timeout is not None else 300,
+            'credential_fields': [{'key': field[0], 'label': field[1]}
+                                  for field in self.auth_credential_fields],
             'instructions': self.auth_instructions,
         }
 
