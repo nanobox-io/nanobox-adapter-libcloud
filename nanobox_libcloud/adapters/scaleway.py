@@ -23,6 +23,7 @@ class Scaleway(RebootMixin, Adapter):
     # Provider-wide server properties
     server_internal_iface = 'eth0'
     server_external_iface = None
+    server_bootstrap_timeout = 900
 
     # Provider auth properties
     auth_credential_fields = [
