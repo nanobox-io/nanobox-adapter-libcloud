@@ -35,6 +35,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
     server_ssh_user = 'nanobox'
     server_ssh_auth_method = 'password'
     server_ssh_key_method = 'object'
+    server_bootstrap_timeout = 1800
 
     # Provider auth properties
     auth_credential_fields = [
