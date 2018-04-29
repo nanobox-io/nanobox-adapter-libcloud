@@ -113,6 +113,8 @@ class Gce(RebootMixin, Adapter):
 
             if plan in ['micro', 'small']:
                 plan = 'standard'
+            if plan in ['megamem']:
+                plan = 'highmem'
 
             self._sizes[plan].append(size)
             self._sizes[plan + '-ssd'].append(size)
