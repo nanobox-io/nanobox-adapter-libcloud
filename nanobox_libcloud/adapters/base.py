@@ -1,6 +1,7 @@
 import os
 import redis
 import typing
+import os
 from decimal import Decimal
 from time import sleep
 from operator import attrgetter
