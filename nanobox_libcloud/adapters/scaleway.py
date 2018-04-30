@@ -143,7 +143,7 @@ class Scaleway(RebootMixin, Adapter):
         location = self._find_location(driver, data['region'])
         size = self._find_size(driver, data['size'])
         image = self._find_image(driver, data['region'], size,
-                                 'Ubuntu Xenial (16.04 latest)')
+                                 'Ubuntu Xenial')
 
         if location is None:
             raise libcloud.common.exceptions.exception_from_message(404,
