@@ -230,26 +230,61 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             vpc = driver.ex_create_network('10.10.0.0/16', 'Nanobox')
             if vpc:
                 driver.ex_create_tags(vpc, {'Nanobox': 'true'})
+                gw = driver.ex_create_internet_gateway('Nanobox GW')
+                driver.ex_create_tags(gw, {'Nanobox': 'true'})
+                driver.ex_attach_internet_gateway(gw, vpc)
+                tables = driver.ex_list_route_tables(filters={'vpc-id': vpc.id})
+                if len(tables) > 0:
+                    table = tables[0]
+                else:
+                    table = driver.ex_create_route_table(vpc, 'Nanobox Routes')
+                driver.ex_create_route(table, '0.0.0.0/0', internet_gateway=gw)
                 vpc_id = vpc.id
 
         subnet = self._get_subnet(vpc_id, az.name)
 
         group_names = ['Nanobox']
         extant_groups = [group.name for group in \
-                         self._find_usable_resources(driver.ex_get_security_groups())]
+                         self._find_usable_resources(
+                              driver.ex_get_security_groups(
+                                     filters=({'vpc-id': vpc_id}
+                                              if vpc_id is not None
+                                              else None)
+                              ))]
 
         sec_groups = []
         for group in group_names:
-            if group not in extant_groups:
-                sg = driver.ex_create_security_group(group,
-                    'Security group policy created by Nanobox.')
+            sg = None
+            if group in extant_groups:
+                try:
+                    sg = self._find_usable_resources(
+                              driver.ex_get_security_groups(
+                                  filters=({
+                                      'group-name': group,
+                                      'vpc-id': vpc_id
+                                  }
+                                  if vpc_id is not None
+                                  else None)
+                              ))[0]
+                except Exception as e:
+                    pass
+
+            if sg is None:
+                sg_id = driver.ex_create_security_group(group,
+                    'Security group policy created by Nanobox.',
+                    vpc_id=vpc_id)['group_id']
+                sg = self._find_usable_resources(
+                          driver.ex_get_security_groups(
+                              filters=({
+                                  'group-id': sg_id,
+                                  'vpc-id': vpc_id
+                              }
+                              if vpc_id is not None
+                              else None)
+                          ))[0]
                 driver.ex_create_tags(sg, {'Nanobox': 'true'})
                 if group == 'Nanobox':
-                    self._add_rules_to_sec_group(driver, sg['group_id'])
-            else:
-                sg = self._find_usable_resources(driver.ex_get_security_groups(
-                    group_names = [group]
-                ))[0]
+                    self._add_rules_to_sec_group(driver, sg.id)
 
             sec_groups.append(sg.id)
 
@@ -401,7 +436,8 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         cidr = str(nets[ord(az_id[-1]) % len(nets)])
         subnet = driver.ex_create_subnet(vpc_id, cidr, az_id, 'Nanobox-%s' % (az_id))
         if subnet and driver.ex_create_tags(subnet, {'Nanobox': 'true'}):
-            subnet.extras['tags']['Nanobox'] = 'true'
+            subnet.extra['tags']['Nanobox'] = 'true'
+        driver.ex_modify_subnet_attribute(subnet, 'auto_public_ip', True)
 
         return subnet
 
