@@ -1,7 +1,7 @@
 import os
 import socket
 import re
-import redis
+import requests
 from time import sleep
 from urllib import parse
 from decimal import Decimal
@@ -78,15 +78,6 @@ class AzureARM(RebootMixin, Adapter):
             'secret': os.getenv('AZR_AUTHENTICATION_KEY', ''),
             'cloud_environment': os.getenv('AZR_CLOUD_ENVIRONMENT', 'default')
         }
-
-    def do_server_create(self, headers, data):
-        """Create a server with a certain provider."""
-        result = super().do_server_create(headers, data)
-        if 'data' in result:
-            r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
-            r.setex('%s:server:%s:status' % (self.id, result['data']['id']), 180, 'ordering')
-
-        return result
 
     # Internal overrides for provider retrieval
     def _get_request_credentials(self, headers):
@@ -322,19 +313,7 @@ class AzureARM(RebootMixin, Adapter):
             if server.name == id:
                 return server
 
-        r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
-        status = r.get('%s:server:%s:status' % (self.id, id))
-
-        if status:
-            return Node(
-                id = id,
-                name = id,
-                state = status,
-                public_ips = [],
-                private_ips = [],
-                driver = driver,
-                extra = {}
-            )
+        return super()._find_server(driver, id)
 
     # Internal-only methods
     def _find_resource_group(self, driver, name):

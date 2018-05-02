@@ -69,8 +69,7 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else repr(err), "status": 500}
         else:
-            r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
-            r.setex('%s:server:%s:status' % (self.id, data['name']), 180, 'ordering')
+            self._cache_server(data['name'])
             tasks.azure.azure_create_classic.delay(dict(headers), data)
             return {"data": {"id": data['name']}, "status": 201}
 
@@ -297,32 +296,6 @@ class AzureClassic(RebootMixin, KeyInstallMixin, Adapter):
         return sorted([img for img in driver.list_images()
             if img.name == name and 'amd64' in img.id
                 and 'DAILY' not in img.id], key=id, reverse=True)[0]
-
-    def _find_server(self, driver, id):
-        err = None
-
-        try:
-            for server in driver.list_nodes(id):
-                if server.id == id:
-                    return server
-        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, AttributeError) as e:
-            err = e
-
-        r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
-        status = r.get('%s:server:%s:status' % (self.id, id))
-
-        if status:
-            return Node(
-                id = id,
-                name = id,
-                state = status,
-                public_ips = [],
-                private_ips = [],
-                driver = driver,
-                extra = {}
-            )
-        elif err:
-            raise err
 
     # Misc internal-only methods
     def _get_password(self, server):

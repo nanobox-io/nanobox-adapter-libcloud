@@ -179,3 +179,8 @@ class Scaleway(RebootMixin, Adapter):
         for server in driver.list_nodes(region):
             if server.id == id:
                 return server
+
+        return super()._find_server(driver, id)
+
+    def _find_usable_servers(self, driver):
+        return []

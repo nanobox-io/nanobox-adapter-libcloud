@@ -210,7 +210,10 @@ class Gce(RebootMixin, Adapter):
         try:
             return driver.ex_get_node(id)
         except libcloud.common.types.ProviderError:
-            return None
+            return super()._find_server(driver, id)
+
+    def _find_usable_servers(self, driver):
+        return []
 
     # Misc Internal Helpers (Adapter-Specific)
     def _get_network(self, driver):

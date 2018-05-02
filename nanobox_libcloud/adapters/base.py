@@ -1,4 +1,5 @@
-
+import os
+import redis
 import typing
 from decimal import Decimal
 from time import sleep
@@ -236,6 +237,7 @@ class Adapter(object, metaclass=AdapterBase):
         except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError) as err:
             return {"error": err.value if hasattr(err, 'value') else err.message, "status": err.code if hasattr(err, 'message') else 500}
         else:
+            self._cache_server(self._get_node_id(result))
             return {"data": {"id": self._get_node_id(result)}, "status": 201}
 
     def do_server_query(self, headers, id) -> typing.Dict[str, typing.Any]:
@@ -449,12 +451,37 @@ class Adapter(object, metaclass=AdapterBase):
         return driver.list_key_pairs()
 
     def _find_server(self, driver, id) -> typing.Optional[Node]:
-        for server in self._find_usable_servers(driver):
-            if server.id == id:
-                return server
+        err = None
+
+        try:
+            for server in self._find_usable_servers(driver):
+                if server.id == id:
+                    return server
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, AttributeError) as e:
+            err = e
+
+        r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
+        status = r.get('%s:server:%s:status' % (self.id, id))
+
+        if status:
+            return Node(
+                id = id,
+                name = id,
+                state = status,
+                public_ips = [],
+                private_ips = [],
+                driver = driver,
+                extra = {}
+            )
+        elif err:
+            raise err
 
     def _find_usable_servers(self, driver) -> typing.Optional[typing.List[Node]]:
         return driver.list_nodes()
+
+    def _cache_server(self, server_id):
+        r = redis.StrictRedis(host=os.getenv('DATA_REDIS_HOST'))
+        r.setex('%s:server:%s:status' % (self.id, server_id), 360, 'ordering')
 
     @classmethod
     def _config_error(cls, msg, **kwargs):
