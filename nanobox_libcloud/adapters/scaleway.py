@@ -37,9 +37,10 @@ class Scaleway(RebootMixin, Adapter):
 
     # Adapter-sepcific properties
     _plans = [
-        ('Starter', 'Starter'),
+        ('Start', 'Start'),
         ('Baremetal', 'Bare Metal'),
-        ('Intensive', 'Intensive'),
+        ('Pro', 'Pro'),
+        ('Deprecated', 'Deprecated\n(UPGRADE TO NEW\n"Start"\nSIZE ASAP)'),
     ]
     _sizes = {}
 
@@ -80,12 +81,12 @@ class Scaleway(RebootMixin, Adapter):
     def get_default_size(self):
         """Gets the default size ID."""
 
-        return 'VC1S'
+        return 'START1-XS'
 
     def get_default_plan(self):
         """Gets the default plan ID."""
 
-        return 'Starter'
+        return 'Start'
 
     # Internal overrides for /catalog
     def _get_plans(self, location):
@@ -95,7 +96,14 @@ class Scaleway(RebootMixin, Adapter):
         self._sizes = {}
 
         for size in self._get_generic_driver().list_sizes():
-            plan = size.extra['range']
+            if size.id.upper().startswith('START'):
+                plan = 'Start'
+            elif size.id.upper().startswith('VC'):
+                plan = 'Deprecated'
+            elif size.extra['baremetal']:
+                plan = 'Baremetal'
+            else:
+                plan = 'Pro'
 
             if plan not in self._sizes:
                 self._sizes[plan] = []
@@ -128,7 +136,7 @@ class Scaleway(RebootMixin, Adapter):
         """Translates a monthly cost value for a given adapter to a ServerSpec value."""
 
         c = CurrencyConverter('http://www.ecb.europa.eu/stats/eurofxref/eurofxref.zip')
-        return c.convert(float(size.extra.get('monthly', 0)), 'EUR', 'USD') or None
+        return c.convert(float(size.extra.get('monthly', 0) or 0), 'EUR', 'USD') or None
 
     # Internal overrides for /key endpoints
     def _create_key(self, driver, key):
@@ -171,8 +179,10 @@ class Scaleway(RebootMixin, Adapter):
     # Misc internal overrides
     def _find_image(self, driver, region, size, id):
         for image in driver.list_images(region):
-            if image.name == id and image.extra['arch'] == size.extra['arch']:
-                return image
+            if (image.name == id and
+                image.extra['arch'] == size.extra['arch'] and
+                image.extra['size'] <= size.extra['max_disk']):
+                    return image
 
     def _find_server(self, driver, id):
         (region, id) = id.split('::', 2)
