@@ -53,8 +53,9 @@ class Gce(RebootMixin, Adapter):
     def __init__(self, **kwargs):
         self.generic_credentials = {
             'user_id': os.getenv('GCE_SERVICE_EMAIL', ''),
-            'key': os.getenv('GCE_SERVICE_KEY', ''),
-            'project': os.getenv('GCE_PROJECT_ID', '')
+            'key': parse.unquote(os.getenv('GCE_SERVICE_KEY', '')).replace('\\n', '\n'),
+            'project': os.getenv('GCE_PROJECT_ID', ''),
+            'auth_type': 'SA'
         }
 
         self._disk_cost_per_gb = {
@@ -77,7 +78,10 @@ class Gce(RebootMixin, Adapter):
 
         auth_credentials['auth_type'] = 'SA'
 
-        return super()._get_user_driver(**auth_credentials)
+        try:
+            return super()._get_user_driver(**auth_credentials)
+        except IndexError as e:
+            raise libcloud.compute.types.InvalidCredsError("Couldn't load service key")
 
     # Internal overrides for /meta
     def get_default_region(self):
