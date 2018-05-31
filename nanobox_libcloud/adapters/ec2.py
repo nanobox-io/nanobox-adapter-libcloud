@@ -30,7 +30,13 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         {
             'key': 'vpc_id',
             'label': 'VPC ID',
-            'description': 'The ID of a VPC to put servers in.',
+            'description': 'The ID of a VPC to launch ec2 instances within.',
+            'rebuild': True,
+        },
+        {
+            'key': 'sg_id',
+            'label': 'Security Group ID',
+            'description': 'An additional, custom Security Group ID to attach to the ec2 instances',
             'rebuild': True,
         },
         {
@@ -287,6 +293,11 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                     self._add_rules_to_sec_group(driver, sg.id)
 
             sec_groups.append(sg.id)
+        
+        # Add a custom security group if specified via the adapter config
+        ex_sg_id = data.get('config', {}).get('sg_id')
+        if ex_sg_id is not None:
+            sec_groups.append(ex_sg_id)
 
         response = {
             "name": data['name'],
