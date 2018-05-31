@@ -219,7 +219,8 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         size = self._find_size(driver, data['size'])
         image = self._find_image(driver,
             'ubuntu/images/%s-ssd/ubuntu-xenial-16.04-amd64-server-*' %
-            ('hvm' if size.extra['hvm'] else 'ebs'))
+            ('hvm' if 'currentGeneration' in size.extra and
+                   size.extra['currentGeneration'] == 'Yes' else 'ebs'))
 
         segments = data['name'].split('.')
         instance = int(segments[-1] if len(segments) > 3 else segments[-2])
@@ -293,7 +294,7 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                     self._add_rules_to_sec_group(driver, sg.id)
 
             sec_groups.append(sg.id)
-        
+
         # Add a custom security group if specified via the adapter config
         ex_sg_id = data.get('config', {}).get('sg_id')
         if ex_sg_id is not None:
