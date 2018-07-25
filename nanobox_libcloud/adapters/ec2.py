@@ -146,16 +146,21 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             'h': 'storage_optimized',
             'i': 'storage_optimized',
             'd': 'storage_optimized',
+            'f': 'accelerated_computing',
             'p': 'accelerated_computing',
             'g': 'accelerated_computing',
         }
 
         for size in self._switch_region(self._get_generic_driver(),
                                         location).list_sizes():
-            plan = keys[size.id[0] if not size.id[0:2] == 'cr'[0:2]
-                        else size.id[1]]
+                                        
+            # extract the first letter to get the key
+            key = size.id[0] if not size.id[0:2] == 'cr'[0:2] else size.id[1]
+            
+            if key in keys:
+                plan = keys[key]
 
-            self._sizes[location][plan].append(size)
+                self._sizes[location][plan].append(size)
 
         return self._plans
 
