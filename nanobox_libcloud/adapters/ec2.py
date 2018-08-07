@@ -153,10 +153,10 @@ class EC2(RebootMixin, RenameMixin, Adapter):
 
         for size in self._switch_region(self._get_generic_driver(),
                                         location).list_sizes():
-                                        
+
             # extract the first letter to get the key
             key = size.id[0] if not size.id[0:2] == 'cr'[0:2] else size.id[1]
-            
+
             if key in keys:
                 plan = keys[key]
 
@@ -235,13 +235,13 @@ class EC2(RebootMixin, RenameMixin, Adapter):
 
         # if the vpc is specified in the config, grab that first
         vpc_id = data.get('config', {}).get('vpc_id')
-        
+
         # if vpc_id isn't specified, let's try to find an existing one
         netlist = driver.ex_list_networks() if vpc_id is None \
              else driver.ex_list_networks(network_ids=[vpc_id])
         vpcs = self._find_usable_resources(netlist)
         vpc_id = vpcs[0].id if len(vpcs) > 0 else None
-        
+
         # we still don't have a vpc, so let's go ahead and create one that we can use
         if vpc_id is None:
             vpc = driver.ex_create_network('10.10.0.0/16', 'Nanobox')
@@ -262,7 +262,7 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         subnet_id = data.get('config', {}).get('subnet_id')
 
         # fetch a subnet from the vpc
-        subnet_id = self._get_subnet(vpc_id, az.name) if subnet_id is None
+        subnet_id = self._get_subnet(vpc_id, az.name) if subnet_id is None else None
 
         group_names = ['Nanobox']
         extant_groups = [group.name for group in \
