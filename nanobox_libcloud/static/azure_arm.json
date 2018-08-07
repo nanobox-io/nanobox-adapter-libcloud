@@ -57,9 +57,10 @@
                 "ssh_auth_method": "key",
                 "ssh_key_method": "reference",
                 "bootstrap_script": "https://s3.amazonaws.com/tools.nanobox.io/bootstrap/ubuntu.sh",
-                "credential_fields": [
-                  {"key": "access-token", "label": "Access Token"}
-                ],
+                "credential_fields": [{
+                  "key": "access-token",
+                  "label": "Access Token"
+                }],
                 "instructions": "<a href='//cloud.digitalocean.com/settings/api/tokens' target='_blank'>Create a Personal Access Token</a> in your Digital Ocean Account that has read/write access, then add the token here or view the <a href='//www.digitalocean.com/community/tutorials/how-to-use-the-digitalocean-api-v2#how-to-generate-a-personal-access-token' target='_blank'>full guide</a>"
               }
             },
@@ -189,27 +190,37 @@
           "url": "https://docs.nanobox.io/providers/create/#catalog"
         },
         "operationId": "catalog",
-        "security": [{}],
         "responses": {
           "200": {
             "description": "The response data should be a list (array) of regions. Each region should contain a list of plans. It is not necessary to have multiple regions, however the structure will be the same regardless. Additionally, your integration may only have one classification of server types, or you may have high-cpu, high-ram, or high-IO options. A plan is a grouping of server sizes within a classification.",
             "examples": {
-              "application/json": [
-                {
-                  "id": "sfo1",
-                  "name": "San Francisco 1",
-                  "plans": [
+              "application/json": [{
+                "id": "sfo1",
+                "name": "San Francisco 1",
+                "plans": [{
+                  "id": "standard",
+                  "name": "Standard Configuration",
+                  "specs": [{
+                      "id": "512mb",
+                      "ram": 512,
+                      "cpu": 1,
+                      "disk": 20,
+                      "transfer": 1,
+                      "dollars_per_hr": 0.00744,
+                      "dollars_per_mo": 5
+                    },
                     {
-                      "id": "standard",
-                      "name": "Standard Configuration",
-                      "specs": [
-                        {"id": "512mb", "ram": 512, "cpu": 1, "disk": 20, "transfer": 1, "dollars_per_hr": 0.00744, "dollars_per_mo": 5},
-                        {"id": "1gb", "ram": 1024, "cpu": 1, "disk": 30, "transfer": 2, "dollars_per_hr": 0.01488, "dollars_per_mo": 10}
-                      ]
+                      "id": "1gb",
+                      "ram": 1024,
+                      "cpu": 1,
+                      "disk": 30,
+                      "transfer": 2,
+                      "dollars_per_hr": 0.01488,
+                      "dollars_per_mo": 10
                     }
                   ]
-                }
-              ]
+                }]
+              }]
             },
             "schema": {
               "description": "Each region in the catalog consists of the following",
@@ -341,40 +352,38 @@
           "url": "https://docs.nanobox.io/providers/create/#order-server"
         },
         "operationId": "order-server",
-        "parameters": [
-          {
-            "name": "payload",
-            "in": "body",
-            "description": "Server creation data",
-            "required": true,
-            "schema": {
-              "required": [
-                "name",
-                "region",
-                "size"
-              ],
-              "properties": {
-                "name": {
-                  "description": "Nanobox-generated name used to identify the machine visually as ordered by Nanobox",
-                  "type": "string"
-                },
-                "region": {
-                  "description": "the region wherein to launch the server, which will match the region `id` from the catalog",
-                  "type": "string"
-                },
-                "size": {
-                  "description": "the size of server to provision, which will match an `id` provided in the aforementioned catalog",
-                  "type": "string"
-                },
-                "ssh_key": {
-                  "description": "id of the SSH key created during the `/keys` request",
-                  "type": "string"
-                }
+        "parameters": [{
+          "name": "payload",
+          "in": "body",
+          "description": "Server creation data",
+          "required": true,
+          "schema": {
+            "required": [
+              "name",
+              "region",
+              "size"
+            ],
+            "properties": {
+              "name": {
+                "description": "Nanobox-generated name used to identify the machine visually as ordered by Nanobox",
+                "type": "string"
               },
-              "type": "object"
-            }
+              "region": {
+                "description": "the region wherein to launch the server, which will match the region `id` from the catalog",
+                "type": "string"
+              },
+              "size": {
+                "description": "the size of server to provision, which will match an `id` provided in the aforementioned catalog",
+                "type": "string"
+              },
+              "ssh_key": {
+                "description": "id of the SSH key created during the `/keys` request",
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
-        ],
+        }],
         "responses": {
           "201": {
             "description": "successful operation",
@@ -414,15 +423,13 @@
           "url": "https://docs.nanobox.io/providers/create/#query-server"
         },
         "operationId": "query-server",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "description": "the server id",
+          "required": true,
+          "type": "string"
+        }],
         "responses": {
           "201": {
             "description": "successful operation",
@@ -484,15 +491,13 @@
           "url": "https://docs.nanobox.io/providers/create/#cancel-server"
         },
         "operationId": "cancel-server",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "description": "the server id",
+          "required": true,
+          "type": "string"
+        }],
         "responses": {
           "200": {
             "description": "successful operation"
@@ -515,15 +520,13 @@
           "url": "https://docs.nanobox.io/providers/create/#reboot-server"
         },
         "operationId": "reboot-server",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "description": "the server id",
+          "required": true,
+          "type": "string"
+        }],
         "responses": {
           "200": {
             "description": "successful operation"
@@ -563,15 +566,13 @@
       "type": "apiKey"
     }
   },
-  "security": [
-    {
-      "Auth-Subscription-Id": [],
-      "Auth-Tenant-Id": [],
-      "Auth-Application-Id": [],
-      "Auth-Authentication-Key": [],
-      "Auth-Cloud-Environment": []
-    }
-  ],
+  "security": [{
+    "Auth-Subscription-Id": [],
+    "Auth-Tenant-Id": [],
+    "Auth-Application-Id": [],
+    "Auth-Authentication-Key": [],
+    "Auth-Cloud-Environment": []
+  }],
   "responses": {
     "default": {
       "description": "Error",
@@ -592,8 +593,7 @@
       }
     }
   },
-  "tags": [
-    {
+  "tags": [{
       "name": "meta",
       "description": "Endpoints related to the provider"
     },

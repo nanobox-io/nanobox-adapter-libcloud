@@ -7,6 +7,7 @@ from operator import attrgetter
 
 import libcloud
 from libcloud.compute.base import NodeDriver, NodeLocation, NodeImage, NodeSize, Node
+from requests.exceptions import ConnectionError
 
 from nanobox_libcloud.utils import models
 
@@ -96,37 +97,41 @@ class Adapter(object, metaclass=AdapterBase):
             auth_instructions=self.auth_instructions,
         ).to_nanobox()
 
-    def do_catalog(self) -> typing.List[dict]:
+    def do_catalog(self, headers) -> typing.List[dict]:
         """Returns the catalog for this adapter."""
         # Build catalog
         catalog = []
 
         try:
-            # Use generic driver because there are no auth tokens
+            # Uses generic driver in case there are no auth tokens, but we want
+            # to override it with a user driver if the credentials are available
+            if self.do_verify(headers) is True:
+                self._generic_driver = self._user_driver
+
             for location in self._get_locations():
                 catalog.append(models.ServerRegion(
-                    id = self._get_location_id(location),
-                    name = self._get_location_name(location),
-                    plans = [
+                    id=self._get_location_id(location),
+                    name=self._get_location_name(location),
+                    plans=[
                         models.ServerPlan(
-                            id = plan_id,
-                            name = plan_name,
-                            specs = [
+                            id=plan_id,
+                            name=plan_name,
+                            specs=[
                                 models.ServerSpec(
-                                    id = self._get_size_id(location, plan_id, size),
-                                    name = self._get_size_name(location, plan_id, size),
-                                    ram = self._get_ram(location, plan_id, size),
-                                    cpu = self._get_cpu(location, plan_id, size),
-                                    disk = self._get_disk(location, plan_id, size),
-                                    transfer = self._get_transfer(location, plan_id, size),
-                                    dollars_per_hr = self._get_hourly_price(location, plan_id, size),
-                                    dollars_per_mo = self._get_monthly_price(location, plan_id, size)
+                                    id=self._get_size_id(location, plan_id, size),
+                                    name=self._get_size_name(location, plan_id, size),
+                                    ram=self._get_ram(location, plan_id, size),
+                                    cpu=self._get_cpu(location, plan_id, size),
+                                    disk=self._get_disk(location, plan_id, size),
+                                    transfer=self._get_transfer(location, plan_id, size),
+                                    dollars_per_hr=self._get_hourly_price(location, plan_id, size),
+                                    dollars_per_mo=self._get_monthly_price(location, plan_id, size)
                                 ) for size in sorted(self._get_sizes(location, plan_id), key=attrgetter('ram', 'disk', 'name'))
                             ]
                         ) for plan_id, plan_name in self._get_plans(location)
                     ]
                 ).to_nanobox())
-        except libcloud.common.exceptions.BaseHTTPError as err:
+        except (libcloud.common.exceptions.BaseHTTPError, ConnectionError) as err:
             return err
         except libcloud.common.types.LibcloudError:
             # TODO: Get cached data...
@@ -141,7 +146,7 @@ class Adapter(object, metaclass=AdapterBase):
         """Verify the account credentials."""
         try:
             self._get_user_driver(**self._get_request_credentials(headers))
-        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, KeyError, ValueError) as e:
+        except (libcloud.common.types.LibcloudError, libcloud.common.exceptions.BaseHTTPError, ConnectionError, KeyError, ValueError) as e:
             return e
         else:
             return True
@@ -215,8 +220,8 @@ class Adapter(object, metaclass=AdapterBase):
     def do_server_create(self, headers, data) -> typing.Dict[str, typing.Any]:
         """Create a server with a certain provider."""
         if data is None or 'name' not in data\
-                        or 'region' not in data\
-                        or 'size' not in data:
+                or 'region' not in data\
+                or 'size' not in data:
             return {
                 "error": ("All servers need a 'name', 'region', and 'size' "
                           "property. (Got %s)") % (data),
@@ -465,13 +470,13 @@ class Adapter(object, metaclass=AdapterBase):
 
         if status:
             return Node(
-                id = id,
-                name = id,
-                state = status,
-                public_ips = [],
-                private_ips = [],
-                driver = driver,
-                extra = {}
+                id=id,
+                name=id,
+                state=status,
+                public_ips=[],
+                private_ips=[],
+                driver=driver,
+                extra={}
             )
         elif err:
             raise err

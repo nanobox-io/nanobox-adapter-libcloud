@@ -190,7 +190,6 @@
           "url": "https://docs.nanobox.io/providers/create/#catalog"
         },
         "operationId": "catalog",
-        "security": [{}],
         "responses": {
           "200": {
             "description": "The response data should be a list (array) of regions. Each region should contain a list of plans. It is not necessary to have multiple regions, however the structure will be the same regardless. Additionally, your integration may only have one classification of server types, or you may have high-cpu, high-ram, or high-IO options. A plan is a grouping of server sizes within a classification.",
@@ -353,40 +352,38 @@
           "url": "https://docs.nanobox.io/providers/create/#order-server"
         },
         "operationId": "order-server",
-        "parameters": [
-          {
-            "name": "payload",
-            "in": "body",
-            "description": "Server creation data",
-            "required": true,
-            "schema": {
-              "required": [
-                "name",
-                "region",
-                "size"
-              ],
-              "properties": {
-                "name": {
-                  "description": "Nanobox-generated name used to identify the machine visually as ordered by Nanobox",
-                  "type": "string"
-                },
-                "region": {
-                  "description": "the region wherein to launch the server, which will match the region `id` from the catalog",
-                  "type": "string"
-                },
-                "size": {
-                  "description": "the size of server to provision, which will match an `id` provided in the aforementioned catalog",
-                  "type": "string"
-                },
-                "ssh_key": {
-                  "description": "id of the SSH key created during the `/keys` request",
-                  "type": "string"
-                }
+        "parameters": [{
+          "name": "payload",
+          "in": "body",
+          "description": "Server creation data",
+          "required": true,
+          "schema": {
+            "required": [
+              "name",
+              "region",
+              "size"
+            ],
+            "properties": {
+              "name": {
+                "description": "Nanobox-generated name used to identify the machine visually as ordered by Nanobox",
+                "type": "string"
               },
-              "type": "object"
-            }
+              "region": {
+                "description": "the region wherein to launch the server, which will match the region `id` from the catalog",
+                "type": "string"
+              },
+              "size": {
+                "description": "the size of server to provision, which will match an `id` provided in the aforementioned catalog",
+                "type": "string"
+              },
+              "ssh_key": {
+                "description": "id of the SSH key created during the `/keys` request",
+                "type": "string"
+              }
+            },
+            "type": "object"
           }
-        ],
+        }],
         "responses": {
           "201": {
             "description": "successful operation",
@@ -426,15 +423,13 @@
           "url": "https://docs.nanobox.io/providers/create/#query-server"
         },
         "operationId": "query-server",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "description": "the server id",
+          "required": true,
+          "type": "string"
+        }],
         "responses": {
           "201": {
             "description": "successful operation",
@@ -501,15 +496,13 @@
           "url": "https://docs.nanobox.io/providers/create/#cancel-server"
         },
         "operationId": "cancel-server",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "description": "the server id",
+          "required": true,
+          "type": "string"
+        }],
         "responses": {
           "200": {
             "description": "successful operation"
@@ -532,15 +525,13 @@
           "url": "https://docs.nanobox.io/providers/create/#reboot-server"
         },
         "operationId": "reboot-server",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "the server id",
-            "required": true,
-            "type": "string"
-          }
-        ],
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "description": "the server id",
+          "required": true,
+          "type": "string"
+        }],
         "responses": {
           "200": {
             "description": "successful operation"
@@ -596,11 +587,12 @@
     }
   },
   "tags": [{
-    "name": "meta",
-    "description": "Endpoints related to the provider"
-  },
-  {
-    "name": "servers",
-    "description": "Endpoints related to server management"
-  }]
+      "name": "meta",
+      "description": "Endpoints related to the provider"
+    },
+    {
+      "name": "servers",
+      "description": "Endpoints related to server management"
+    }
+  ]
 }

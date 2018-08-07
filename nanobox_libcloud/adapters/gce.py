@@ -117,7 +117,7 @@ class Gce(RebootMixin, Adapter):
 
             if plan in ['micro', 'small']:
                 plan = 'standard'
-            if plan in ['megamem']:
+            if plan in ['megamem', 'ultramem']:
                 plan = 'highmem'
 
             self._sizes[plan].append(size)
