@@ -310,7 +310,7 @@ class EC2(RebootMixin, RenameMixin, Adapter):
         if subnet:
             payload['ex_subnet'] = subnet
             
-        return response
+        return payload
 
     def _get_server_config(self, server):
         return [
