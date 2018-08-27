@@ -40,6 +40,12 @@ class EC2(RebootMixin, RenameMixin, Adapter):
             'rebuild': True,
         },
         {
+            'key': 'subnet_id',
+            'label': 'Subnet ID',
+            'description': 'A specific subnet to launch instances into',
+            'rebuild': True,
+        },
+        {
             'key': 'az_distribution',
             'label': 'Availability Zone Distribution',
             'description': 'The number of AZs to distribute instances across.',
@@ -219,112 +225,73 @@ class EC2(RebootMixin, RenameMixin, Adapter):
     def _get_create_args(self, data):
         """Returns the args used to create a server for this adapter."""
 
-        # Reconnect to the correct region before continuing
+        # config overrides
+        config_vpc_id = data.get('config', {}).get('vpc_id')
+        config_sg_id = data.get('config', {}).get('sg_id')
+        config_subnet_id = data.get('config', {}).get('subnet_id')
+        config_az_distribution = data.get('config', {}).get('az_distribution', 1)
+
+        # instantiate a driver (superclass functionality requires a driver)
         driver = self._get_user_driver()
+
+        # retrieve or create the pieces we'll need
         size = self._find_size(driver, data['size'])
-        image = self._find_image(driver,
-            'ubuntu/images/%s-ssd/ubuntu-xenial-16.04-amd64-server-*' %
-            ('hvm' if 'currentGeneration' in size.extra and
-                   size.extra['currentGeneration'] == 'Yes' else 'ebs'))
+        image = self._find_image(driver, size)
 
-        segments = data['name'].split('.')
-        instance = int(segments[-1] if len(segments) > 3 else segments[-2])
-        az_distribution = max(min(int(data.get('config', {}).get('az_distribution', 1)),
-            len(driver.list_locations())), 1)
-        az = driver.list_locations()[(instance - 1) % az_distribution]
-
-        # if the vpc is specified in the config, grab that first
-        vpc_id = data.get('config', {}).get('vpc_id')
-
-        # if vpc_id isn't specified, let's try to find an existing one
-        netlist = driver.ex_list_networks() if vpc_id is None \
-             else driver.ex_list_networks(network_ids=[vpc_id])
-        vpcs = self._find_usable_resources(netlist)
-        vpc_id = vpcs[0].id if len(vpcs) > 0 else None
-
-        # we still don't have a vpc, so let's go ahead and create one that we can use
-        if vpc_id is None:
-            vpc = driver.ex_create_network('10.10.0.0/16', 'Nanobox')
-            if vpc:
-                driver.ex_create_tags(vpc, {'Nanobox': 'true'})
-                gw = driver.ex_create_internet_gateway('Nanobox GW')
-                driver.ex_create_tags(gw, {'Nanobox': 'true'})
-                driver.ex_attach_internet_gateway(gw, vpc)
-                tables = driver.ex_list_route_tables(filters={'vpc-id': vpc.id})
-                if len(tables) > 0:
-                    table = tables[0]
-                else:
-                    table = driver.ex_create_route_table(vpc, 'Nanobox Routes')
-                driver.ex_create_route(table, '0.0.0.0/0', internet_gateway=gw)
-                vpc_id = vpc.id
-
-        # if the subnet is already specified in the config, grab that first
-        subnet_id = data.get('config', {}).get('subnet_id')
-
-        # fetch a subnet from the vpc
-        subnet_id = self._get_subnet(vpc_id, az.name) if subnet_id is None else None
-
-        group_names = ['Nanobox']
-        extant_groups = [group.name for group in \
-                         self._find_usable_resources(
-                              driver.ex_get_security_groups(
-                                     filters=({'vpc-id': vpc_id}
-                                              if vpc_id is not None
-                                              else None)
-                              ))]
-
-        sec_groups = []
-        for group in group_names:
-            sg = None
-            if group in extant_groups:
-                try:
-                    sg = self._find_usable_resources(
-                              driver.ex_get_security_groups(
-                                  filters=({
-                                      'group-name': group,
-                                      'vpc-id': vpc_id
-                                  }
-                                  if vpc_id is not None
-                                  else None)
-                              ))[0]
-                except Exception as e:
-                    pass
-
-            if sg is None:
-                sg_id = driver.ex_create_security_group(group,
-                    'Security group policy created by Nanobox.',
-                    vpc_id=vpc_id)['group_id']
-                sg = self._find_usable_resources(
-                          driver.ex_get_security_groups(
-                              filters=({
-                                  'group-id': sg_id,
-                                  'vpc-id': vpc_id
-                              }
-                              if vpc_id is not None
-                              else None)
-                          ))[0]
-                driver.ex_create_tags(sg, {'Nanobox': 'true'})
-                if group == 'Nanobox':
-                    self._add_rules_to_sec_group(driver, sg.id)
-
-            sec_groups.append(sg.id)
-
-        # Add a custom security group if specified via the adapter config
-        ex_sg_id = data.get('config', {}).get('sg_id')
-        if ex_sg_id is not None:
-            sec_groups.append(ex_sg_id)
-
-        response = {
+        # VPC
+        # 
+        # Rules:
+        #   1 - If the vpc_id is specified, we need to look it up directly.
+        #   2 - If not specified, try to find a default VPC in this region
+        #   3 - If that won't work, we create a usable VPC
+        if config_vpc_id:
+            vpc = self._load_vpc_by_id(driver, config_vpc_id)
+        else:
+            vpc = self._find_default_vpc(driver)
+            if not vpc:
+                vpc = self._create_nanobox_vpc(driver)
+        
+        # Subnet
+        # 
+        # Rules:
+        #   1 - If the subnet_id is specified, we need to look it up directly.
+        #   2 - If not specified, we don't need to find one
+        if config_subnet_id:
+            subnet = self._load_subnet_by_id(driver, config_subnet_id)
+        
+        # Availability Zone
+        # 
+        # Rules:
+        #   1 - If a 'Subnet' was looked up, we need to pull the zone from the subnet
+        #   2 - Otherwise, we list all Availability Zones with the VPC and modulus for distribution
+        if subnet:
+            az = self._load_az_by_name(driver, subnet.extra.get('zone'))
+        else:
+            az = self._find_az_by_distribution(driver, data['name'], config_az_distribution)
+        
+        # Security Group
+        # 
+        # Rules:
+        #   1 - If sg_id is specified, use that.
+        #   2 - Otherwise we look up the default nanobox security group
+        #   3 - If that doesn't exist, we create one
+        if config_sg_id:
+            sg = self._load_sg_by_id(driver, config_sg_id)
+        else:
+            sg = self._find_nanobox_sg(driver, config_vpc_id, vpc.id)
+            if not sg:
+                sg = self._create_nanobox_sg(driver)
+            
+        payload = {
             "name": data['name'],
             "size": size,
             "image": image,
             "location": az,
             "ex_keyname": data['ssh_key'],
-            "ex_security_group_ids": sec_groups,
+            "ex_security_group_ids": [sg.id],
             "ex_metadata": {
                 'Nanobox': 'true',
                 'Nanobox-Name': data['name'],
-                'AZ-Distribution': az_distribution,
             },
             "ex_blockdevicemappings": [
                 {
@@ -336,11 +303,13 @@ class EC2(RebootMixin, RenameMixin, Adapter):
                     }
                 }
             ],
-            "ex_subnet": subnet_id,
             # "ex_assign_public_ip": True,
             "ex_terminate_on_shutdown": False,
         }
 
+        if subnet:
+            payload['ex_subnet'] = subnet
+            
         return response
 
     def _get_server_config(self, server):
@@ -351,13 +320,29 @@ class EC2(RebootMixin, RenameMixin, Adapter):
 
     # Misc Internal Overrides
     def _find_image(self, driver, id):
-        return sorted(self._find_usable_resources(driver.list_images(ex_filters={
-                'architecture': 'x86_64',
-                'image-type': 'machine',
-                'name': id,
-                'root-device-type': 'ebs',
-                'state': 'available',
-            })), key=attrgetter('name'), reverse=True)[0]
+        # in this specific override, the id is actually a size
+        size = id
+        
+        # what type of hypervisor are we dealing with
+        hypervisor_type = 'ebs'
+        # in the event of hvm, let's override that
+        if 'currentGeneration' in size.extra and size.extra['currentGeneration'] == 'Yes':
+            hypervisor_type = 'hvm'
+        
+        # image name
+        name = 'ubuntu/images/{}-ssd/ubuntu-xenial-16.04-amd64-server-*'.format(hypervisor_type)
+        
+        # fetch all of the images
+        images = driver.list_images(ex_filters={
+            'architecture': 'x86_64',
+            'image-type': 'machine',
+            'name': name,
+            'root-device-type': 'ebs',
+            'state': 'available',
+        })
+        
+        # return the first image
+        return sorted(images, key=attrgetter('name'), reverse=True)[0]
 
     def _find_ssh_key(self, driver, id, public_key=None):
         try:
@@ -409,7 +394,81 @@ class EC2(RebootMixin, RenameMixin, Adapter):
 
         return gb * hourly
 
-    def _add_rules_to_sec_group(self, driver, sgid):
+    def _load_vpc_by_id(self, driver, vpc_id):
+        networks = driver.ex_list_networks([vpc_id])
+        if networks:
+            return networks[0]
+        
+    def _find_default_vpc(self, driver):
+        networks = driver.ex_list_networks()
+        priority = self._find_usable_resources(networks)
+        if priority:
+            return priority[0]
+        
+    def _create_nanobox_vpc(self, driver):
+        vpc = driver.ex_create_network('10.10.0.0/16', 'Nanobox')
+        if vpc:
+            driver.ex_create_tags(vpc, {'Nanobox': 'true'})
+            gw = driver.ex_create_internet_gateway('Nanobox GW')
+            driver.ex_create_tags(gw, {'Nanobox': 'true'})
+            driver.ex_attach_internet_gateway(gw, vpc)
+            tables = driver.ex_list_route_tables(filters={'vpc-id': vpc.id})
+            if tables:
+                table = tables[0]
+            else:
+                table = driver.ex_create_route_table(vpc, 'Nanobox Routes')
+            driver.ex_create_route(table, '0.0.0.0/0', internet_gateway=gw)
+            
+            return vpc
+        
+    def _load_subnet_by_id(self, driver, subnet_id):
+        subnets = driver.ex_list_subnets([subnet_id])
+        if subnets:
+            return subnets[0]
+        
+    def _load_az_by_name(self, driver, name):
+        for location in driver.list_locations():
+            if location.name == name:
+                return location
+        
+    def _find_az_by_distribution(self, driver, name, distribution):
+        segments = name.split('.')
+        instance = int(segments[-1] if len(segments) > 3 else segments[-2])
+        locations = driver.list_locations()
+        az_distribution = max(min(int(distribution), len(locations)), 1)
+        az = locations[(instance - 1) % az_distribution]
+        return az
+
+    def _load_sg_by_id(self, driver, sg_id):
+        groups = driver.ex_get_security_groups([sg_id])
+        if groups:
+            return groups[0]
+
+    def _find_nanobox_sg(self, driver, vpc_id=None):
+        filters = {
+            'group-name': 'Nanobox'
+        }
+        if vpc_id:
+            filters['vpc-id'] = vpc_id
+        
+        groups = driver.ex_get_security_groups(filters=filters)
+        if groups:
+            return groups[0]
+        
+    def _create_nanobox_sg(self, driver, vpc_id):
+        sg_id = driver.ex_create_security_group('Nanobox',
+            'Security group policy created by Nanobox.',
+            vpc_id=vpc_id)
+            
+        group = self._load_sg_by_id(driver, sg_id)
+        
+        driver.ex_create_tags(group, {'Nanobox': 'true'})
+        
+        self._add_rules_to_sg(driver, sg_id)
+        
+        return group
+        
+    def _add_rules_to_sg(self, driver, sgid):
         sgobj = driver.ex_get_security_groups(group_ids=[sgid])[0]
         # Try to create a single rule that allows everything,
         # then fall back to one for each protocol
