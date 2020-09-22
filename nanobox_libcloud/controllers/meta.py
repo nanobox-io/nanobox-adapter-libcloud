@@ -9,7 +9,7 @@ from nanobox_libcloud.utils import output
 @app.route('/', methods=['GET'])
 def overview():
     """Provides an overview of the libcloud meta-adapter, and how to use it, in the most general sense."""
-    adapters = sorted(AdapterBase.registry.keys())
+    adapters = sorted(AdapterBase.registry.values(), key=lambda adapter: adapter._get_id())
 
     return render_template("overview.html", adapters=adapters)
 
@@ -61,7 +61,7 @@ def catalog(adapter_id):
 
     result = adapter.do_catalog(request.headers)
     if not isinstance(result, list):
-        return output.failure('%d: %s' % (result.code, result.message) if hasattr(result, 'code') and hasattr(result, 'message') else repr(result), 500)
+        return output.failure('%d: %s' % (result.code, result.message) if hasattr(result, 'code') and hasattr(result, 'message') else repr(result), result.code if hasattr(result, 'code') else 500)
 
     return output.success(result)
 

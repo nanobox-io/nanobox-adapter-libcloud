@@ -4,10 +4,10 @@
 
 <ul>
   {% for adapter in adapters %}
-    <li><a href="/{{ adapter }}">{{ url_for("usage", adapter_id=adapter, _external=True) }}</a></li>
+    <li><a href="/{{ adapter._get_id() }}">{{ adapter.name }}</a></li>
   {% endfor %}
 </ul>
 
-<p>From your Nanobox Dashboard, if you don't see the associated adapter there already (you should, if it's here, unless it's still in development), create a new Hosting Account with a Custom Provider, and provide the adapter URL above as the Provider Endpoint. Then, simply follow the instructions to set up your hosting account.</p>
+<p>From your Nanobox Dashboard, if you don't see the associated adapter there already (you should, if it's here, unless it's still in development), create a new Hosting Account with a Custom Provider, and provide the adapter's URL as the Provider Endpoint. Then, simply follow the instructions to set up your hosting account.</p>
 
 <p>For those interested, you can explore the actual adapter APIs yourself at <a href="/docs">{{ url_for('docs', _external=True) }}</a>.</p>

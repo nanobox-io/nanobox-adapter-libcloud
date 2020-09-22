@@ -121,12 +121,5 @@ class Packet(RebootMixin, Adapter):
         }
 
     # Misc internal overrides
-    def _find_size(self, driver, id):
-        for size in driver.list_sizes():
-            if size.id == id:
-                return size
-
-    def _find_server(self, driver, id):
-        for server in driver.list_nodes(self.project_id):
-            if server.id == id:
-                return server
+    def _find_usable_servers(self, driver):
+        return driver.list_nodes(self.project_id)

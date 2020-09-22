@@ -86,7 +86,7 @@ class Ovh(Adapter):
 
         driver = super()._get_user_driver(**auth_credentials)
 
-        driver.list_key_pairs()
+        driver.list_nodes()
 
         return driver
 

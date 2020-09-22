@@ -14,6 +14,10 @@ marked, below, with an asterisk (\*).
 _Please keep this list sorted alphabetically by provider name to help with
 finding evars quickly._
 
+### Amazon AWS EC2
+-   `EC2_KEY_ID`\*
+-   `EC2_ACCESS_KEY`\*
+
 ### Google Compute Engine
 -   `GCE_SERVICE_EMAIL`\*
 -   `GCE_SERVICE_KEY`\*
@@ -48,6 +52,14 @@ finding evars quickly._
 
 ### Vultr
 -   `VULTR_API_KEY`\*
+
+## Development Usage
+Start the adapter by running `nanobox run gunicorn -c /app/etc/gunicorn.py
+nanobox_libcloud:app` in a terminal. If you're working on one or more providers
+that use background tasks (currently only Azure), also start celery, by running
+`nanobox run celery -A nanobox_libcloud.celery worker -E -l info` in a second
+terminal. Access [the adapter root](http://adapter.local/) for further usage
+info.
 
 ## Et Cetera
 More info will be added to this README as it comes up.

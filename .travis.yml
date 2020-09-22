@@ -1,0 +1,19 @@
+dist: trusty
+sudo: required
+
+install:
+  - sudo bash -c "$(curl -fsSL https://s3.amazonaws.com/tools.nanobox.io/bootstrap/ci.sh)"
+  - nanobox evar load local <(env -0 | grep -zE '(AZC|AZR|GCE|OVH|PKT|SCALEWAY|VULTR)_' | tr '\0' '\n')
+  - nanobox evar add local FLASK_APP=nanobox_libcloud:app
+  - nanobox evar add local FLASK_LOG_LEVEL=FATAL
+  - nanobox evar ls local
+  - nanobox build-runtime
+
+script: nanobox run python -m unittest -v
+
+after_success:
+  - |-
+    if [[ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_BRANCH" == "master" ]]
+    then
+      nanobox deploy adapters/adapter-libcloud
+    fi

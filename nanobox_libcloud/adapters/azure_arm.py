@@ -7,7 +7,7 @@ from urllib import parse
 from decimal import Decimal
 
 import libcloud
-from libcloud.compute.base import NodeAuthSSHKey
+from libcloud.compute.base import NodeAuthSSHKey, Node
 from nanobox_libcloud import tasks
 from nanobox_libcloud.adapters import Adapter
 from nanobox_libcloud.adapters.base import RebootMixin
@@ -97,9 +97,13 @@ class AzureARM(RebootMixin, Adapter):
         if self._user_driver is not None:
             return self._user_driver
         else:
-            driver = super()._get_user_driver(**auth_credentials)
-            driver.list_locations()
-            return driver
+            try:
+                driver = super()._get_user_driver(**auth_credentials)
+                driver.list_locations()
+            except requests.exceptions.ConnectionError:
+                raise libcloud.common.types.LibcloudError('Invalid Credentials')
+            else:
+                return driver
 
     @classmethod
     def _get_id(cls):
