@@ -115,7 +115,7 @@ class Gce(RebootMixin, Adapter):
         for size in self._get_generic_driver().list_sizes(location):
             plan = size.name.split('-')[1]
 
-            if plan in ['micro', 'small']:
+            if plan in ['micro', 'small', 'medium']:
                 plan = 'standard'
             if plan in ['megamem', 'ultramem']:
                 plan = 'highmem'
